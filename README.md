@@ -21,7 +21,7 @@ A small Python-based Ethernet/IP emulation template built on top of `cpppo` that
 
 ## Project Structure
 
-See (Software Engineering at Merck)[https://engineering.merckgroup.com/docs/dev/structure/] for more details.
+See [Software Engineering at Merck](https://engineering.merckgroup.com/docs/dev/structure/) for more details.
 
 ```
 src/
