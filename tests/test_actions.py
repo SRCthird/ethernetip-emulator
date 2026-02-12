@@ -1,4 +1,4 @@
-# Copyright 2022 Merck KGaA, Darmstadt, Germany and/or its affiliates.
+# Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 import unittest
 from unittest.mock import patch
