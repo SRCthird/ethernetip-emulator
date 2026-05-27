@@ -7,7 +7,7 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class AttributeActions:
@@ -19,6 +19,7 @@ class AttributeActions:
     - Start workers that periodically modify attributes (e.g. increment counters).
     - React to attribute writes via `on_set` and custom handlers.
     - Start counter workers that simulate PLC COUNTER behaviour (ACC, PRE, DN, OV, UN).
+    - Listen for tag value changes via `on_change`.
     """
 
     def __init__(
@@ -39,6 +40,15 @@ class AttributeActions:
         self._sleep = sleep_fn
         # Simple logger callback (can be replaced by a real logger)
         self._logger = logger
+
+        # Registry of change listeners: tag_name -> list of (callback, key_filter)
+        # key_filter=None means fire for any key; otherwise only fire when key matches.
+        # Callback signature: (attr, key, value) — same as on_set.
+        self._listeners: Dict[
+            str, List[tuple[Callable[[Any, Any, Any], None], Optional[Any]]]
+        ] = {}
+        # Lock protecting _listeners so on_set and on_change are thread-safe
+        self._listener_lock = threading.Lock()
 
         # Provide a default thread factory if none is supplied
         if thread_factory is None:
@@ -117,6 +127,105 @@ class AttributeActions:
         if attr is None:
             self._logger(f"AttributeActions: attr is None for {tag_name}")
         return attr
+
+    # -------------------------------------------------------------------------
+    # Change listeners
+    # -------------------------------------------------------------------------
+
+    def on_change(
+        self,
+        tag_name: str,
+        callback: Callable[[Any, Any, Any], None],
+        *,
+        key: Optional[Any] = None,
+    ) -> "AttributeActions":
+        """
+        Register a callback to be fired whenever a tag's value is written.
+
+        The callback is invoked synchronously inside ``on_set``, which is
+        called from ``AttributeDevice.__setitem__`` on every write —
+        including writes from background workers.
+
+        Args:
+            tag_name: The tag to watch, e.g. ``"O_Timer.DN"``.
+            callback: A callable with the signature::
+
+                          def handler(attr: Any, key: Any, value: Any) -> None:
+                              ...
+
+                      ``attr``  — the attribute object that was written (same as in ``on_set``).
+                      ``key``      — the index/key that was written.
+                      ``value``    — the new value.
+
+            key:      Optional key filter. When provided, the callback fires
+                      only when the written key matches this value. When
+                      ``None`` (default), the callback fires for every key.
+
+        Returns:
+            ``self`` for chaining::
+
+                actions\
+                    .on_change("O_Timer.DN", on_timer_done)\
+                    .on_change("O_Updates.DN", on_updates_done)
+
+        Example::
+
+            def on_timer_done(attr, key, value):
+                if value:
+                    print(f"{tag_name}[{key}] went high — timer finished")
+
+            actions.on_change("O_Timer.DN", on_timer_done)
+
+            # One-shot style with a lambda:
+            actions.on_change("O_Timer.DN", lambda t, k, v: print("Done!") if v else None)
+        """
+        with self._listener_lock:
+            self._listeners.setdefault(tag_name, []).append((callback, key))
+        return self
+
+    def remove_listener(
+        self,
+        tag_name: str,
+        callback: Callable[[Any, Any, Any], None],
+    ) -> "AttributeActions":
+        """
+        Remove a previously registered change listener.
+
+        If the same callable was registered multiple times (e.g. with
+        different key filters), all registrations for that callable are
+        removed.
+
+        Args:
+            tag_name: The tag the listener was registered on.
+            callback: The callable that was passed to ``on_change``.
+        """
+        with self._listener_lock:
+            entries = self._listeners.get(tag_name, [])
+            self._listeners[tag_name] = [
+                (cb, k) for cb, k in entries if cb is not callback
+            ]
+        return self
+
+    def _fire_listeners(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        """
+        Invoke all registered listeners for ``tag_name``.
+
+        Called internally from ``on_set``. Exceptions raised by individual
+        callbacks are caught and forwarded to the logger so one bad callback
+        cannot break the dispatch chain.
+        """
+        with self._listener_lock:
+            entries = list(self._listeners.get(tag_name, []))
+
+        for callback, key_filter in entries:
+            if key_filter is not None and key_filter != key:
+                continue
+            try:
+                callback(attr, key, value)
+            except Exception as exc:
+                self._logger(
+                    f"AttributeActions: listener error for {tag_name}: {exc}"
+                )
 
     # -------------------------------------------------------------------------
     # Increment worker
@@ -414,7 +523,7 @@ class AttributeActions:
     # Counter manual controls
     # -------------------------------------------------------------------------
 
-    def increment(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def counter_increment(self, tag_prefix: str, *, key: Any = 0) -> None:
         """
         Manually increment the counter's ACC by 1.
 
@@ -431,7 +540,7 @@ class AttributeActions:
         ov_attr  = self._lookup(f"{tag_prefix}.OV")
 
         if acc_attr is None or pre_attr is None:
-            self._logger(f"AttributeActions.increment: essential tags missing for {tag_prefix}")
+            self._logger(f"AttributeActions.counter_increment: essential tags missing for {tag_prefix}")
             return
 
         acc = self._read_attr(acc_attr, key) or 0
@@ -457,7 +566,7 @@ class AttributeActions:
             if dn_attr is not None:
                 self._write_attr(dn_attr, key, 1)
 
-    def decrement(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def counter_decrement(self, tag_prefix: str, *, key: Any = 0) -> None:
         """
         Manually decrement the counter's ACC by 1.
 
@@ -473,7 +582,7 @@ class AttributeActions:
         un_attr  = self._lookup(f"{tag_prefix}.UN")
 
         if acc_attr is None:
-            self._logger(f"AttributeActions.decrement: ACC tag missing for {tag_prefix}")
+            self._logger(f"AttributeActions.counter_decrement: ACC tag missing for {tag_prefix}")
             return
 
         acc = self._read_attr(acc_attr, key) or 0
@@ -498,7 +607,7 @@ class AttributeActions:
         if dn_attr is not None and pre > 0 and acc < pre:
             self._write_attr(dn_attr, key, 0)
 
-    def reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def counter_reset(self, tag_prefix: str, *, key: Any = 0) -> None:
         """
         Reset the counter to its initial state.
 
@@ -522,6 +631,183 @@ class AttributeActions:
                 self._write_attr(attr, key, value)
 
     # -------------------------------------------------------------------------
+    # Timer worker
+    # -------------------------------------------------------------------------
+
+    def start_timer(
+        self,
+        tag_prefix: str,
+        *,
+        period: float = 0.1,
+        key: Any = 0,
+        preset_ms: Optional[int] = None,
+        initial_delay: float = 1.0,
+        enable: Optional[Union[str, Callable[[], bool]]] = None,
+    ) -> "AttributeActions":
+        """
+        Start a background thread that simulates a PLC TON (Timer On-Delay).
+
+        The timer accumulates elapsed time in milliseconds in ACC and manages
+        the standard TIMER status bits:
+
+        - **EN** (Enable)       — set True when the enable gate is active.
+        - **TT** (Timer Timing) — True while EN is set and ACC < PRE.
+        - **DN** (Done)         — set True when ACC >= PRE; stays True while
+                                  EN remains active (mirroring TON behaviour).
+
+        ACC accumulates real elapsed milliseconds via ``time.monotonic()``.
+        When EN drops the timer resets: ACC = 0, TT = 0, DN = 0, EN = 0.
+        PRE is read each cycle so it can be changed at runtime.
+
+        Args:
+            tag_prefix:    Common prefix, e.g. ``"Timer"``.
+            period:        Poll interval in seconds (default 0.1 s = 100 ms).
+            key:           Index/key for all attribute reads and writes.
+            preset_ms:     Override value (ms) written to PRE on startup.
+            initial_delay: One-time delay before the worker starts.
+            enable:        Gate — callable, tag name string, or None (always on).
+        """
+        def worker() -> None:
+            self.run_timer_worker(
+                tag_prefix=tag_prefix,
+                period=period,
+                key=key,
+                preset_ms=preset_ms,
+                initial_delay=initial_delay,
+                enable=enable,
+            )
+
+        t = self._thread_factory(
+            target=worker,
+            daemon=True,
+            name=f"{tag_prefix}-timer",
+        )
+        t.start()
+        self._threads.append(t)
+        return self
+
+    def run_timer_worker(
+        self,
+        *,
+        tag_prefix: str,
+        period: float,
+        key: Any,
+        preset_ms: Optional[int],
+        initial_delay: float,
+        enable: Optional[Union[str, Callable[[], bool]]] = None,
+    ) -> None:
+        """
+        Core loop for the timer worker; meant to run inside a thread.
+
+        Resolves tags as ``<tag_prefix>.PRE``, ``<tag_prefix>.ACC``, etc.
+        Runs until ``stop()`` is called.
+        """
+        acc_tag = f"{tag_prefix}.ACC"
+        pre_tag = f"{tag_prefix}.PRE"
+        en_tag  = f"{tag_prefix}.EN"
+        tt_tag  = f"{tag_prefix}.TT"
+        dn_tag  = f"{tag_prefix}.DN"
+
+        if initial_delay > 0:
+            self._sleep(initial_delay)
+
+        if preset_ms is not None:
+            pre_attr = self._lookup(pre_tag)
+            if pre_attr is not None:
+                self._write_attr(pre_attr, key, preset_ms)
+
+        was_enabled = False
+        t_start: Optional[float] = None
+
+        while not self._stop.is_set():
+            acc_attr = self._lookup(acc_tag)
+            pre_attr = self._lookup(pre_tag)
+            en_attr  = self._lookup(en_tag)
+            tt_attr  = self._lookup(tt_tag)
+            dn_attr  = self._lookup(dn_tag)
+
+            if acc_attr is None or pre_attr is None:
+                self._sleep(period)
+                continue
+
+            # --- Evaluate enable gate ---
+            if enable is None:
+                gate_open = True
+            elif callable(enable):
+                gate_open = bool(enable())
+            else:
+                gate_attr = self._lookup(enable)
+                gate_open = bool(self._read_attr(gate_attr, key)) if gate_attr is not None else False
+
+            # --- Falling edge: gate just closed — reset timer ---
+            if was_enabled and not gate_open:
+                t_start = None
+                for attr, val in [
+                    (acc_attr, 0), (en_attr, 0), (tt_attr, 0), (dn_attr, 0),
+                ]:
+                    if attr is not None:
+                        self._write_attr(attr, key, val)
+                was_enabled = False
+                self._sleep(period)
+                continue
+
+            if not gate_open:
+                self._sleep(period)
+                continue
+
+            # --- Rising edge: gate just opened — start timing ---
+            if not was_enabled:
+                t_start = time.monotonic()
+                was_enabled = True
+                if en_attr is not None:
+                    self._write_attr(en_attr, key, 1)
+
+            pre = self._read_attr(pre_attr, key) or 0
+            elapsed_ms = int((time.monotonic() - t_start) * 1000) if t_start is not None else 0
+            acc = min(elapsed_ms, pre) if pre > 0 else elapsed_ms
+            self._write_attr(acc_attr, key, acc)
+
+            if pre > 0 and elapsed_ms >= pre:
+                if tt_attr is not None:
+                    self._write_attr(tt_attr, key, 0)
+                if dn_attr is not None:
+                    self._write_attr(dn_attr, key, 1)
+            else:
+                if tt_attr is not None:
+                    self._write_attr(tt_attr, key, 1)
+                if dn_attr is not None:
+                    self._write_attr(dn_attr, key, 0)
+
+            self._sleep(period)
+
+        # Worker stopping — clean up all timer bits
+        for tag in [acc_tag, en_tag, tt_tag, dn_tag]:
+            attr = self._lookup(tag)
+            if attr is not None:
+                self._write_attr(attr, key, 0)
+
+    # -------------------------------------------------------------------------
+    # Timer manual controls
+    # -------------------------------------------------------------------------
+
+    def timer_reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+        """
+        Manually reset a timer to its initial state.
+
+        Writes ACC = 0, EN = 0, TT = 0, DN = 0. PRE is left unchanged.
+        Safe to call while a timer worker is running.
+        """
+        for tag in [
+            f"{tag_prefix}.ACC",
+            f"{tag_prefix}.EN",
+            f"{tag_prefix}.TT",
+            f"{tag_prefix}.DN",
+        ]:
+            attr = self._lookup(tag)
+            if attr is not None:
+                self._write_attr(attr, key, 0)
+
+    # -------------------------------------------------------------------------
     # Lifecycle
     # -------------------------------------------------------------------------
 
@@ -537,46 +823,12 @@ class AttributeActions:
         """
         Dispatch logic whenever an attribute value is set.
 
-        This method is intended to be called by `AttributeDevice.__setitem__`
-        (or an equivalent mechanism) whenever an attribute is written.
-
-        Based on `attr.name`, it routes to specific handler methods, enabling
-        custom side effects when certain attributes change.
+        Called by ``AttributeDevice.__setitem__`` on every write. Fires
+        registered ``on_change`` listeners for the tag, then routes to any
+        named handler method via the match block below.
         """
-        match getattr(attr, "name", None):
-            # EXAMPLE:
-            case "I_TEXT":
-                self.I_TEXT(attr, key, value)
-            case _:
-                pass
+        tag_name = getattr(attr, "name", None)
 
-    # -------------------------------------------------------------------------
-    # Custom handler(s)
-    # -------------------------------------------------------------------------
-
-    # EXAMPLE:
-    def I_TEXT(self, attr: Any, key: Any, value: Any) -> None:
-        """
-        Example handler for attribute "I_TEXT".
-
-        Behaviour:
-        - When "I_TEXT" is written, mirror that value to "O_TEXT" in the same
-          attribute class registry, if such an attribute exists.
-
-        This demonstrates how to implement cross-attribute side effects.
-        """
-        registry: Dict[str, Any] = getattr(type(attr), "registry", {})
-        output_tag = registry.get("O_TEXT")
-        output_count_done = registry.get("O_Updates.DN")
-        if output_tag is not None:
-            try:
-                self.increment("O_Updates") # Counts the amount of times I_TEXT is updated
-
-                # If Count is done set O_TEXT to "Count Completed"
-                if output_count_done is not None and output_count_done[key][0]:
-                        output_tag[key] = ["Count Completed"]
-                else:
-                    output_tag[key] = value
-            except Exception:
-                if hasattr(output_tag, "value"):
-                    setattr(output_tag, "value", value)
+        # Fire all on_change listeners registered for this tag
+        if tag_name is not None:
+            self._fire_listeners(tag_name, attr, key, value)
