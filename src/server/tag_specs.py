@@ -45,7 +45,13 @@ TAG_SPECS = [
     ("I_TEXT", "SSTRING[255]", ""),
     ("O_TEXT", "SSTRING[255]", ""),
 
-    ("O_INCR", "DINT", 0),
+    ("O_INCR", "INT", 0),
+
+    # Types of numbers
+    ("O_8Bit",        "SINT",  0),
+    ("O_16Bit",       "INT",   0),
+    ("O_32Bit",       "DINT",  0),
+    ("O_32Bit_Float", "REAL",  0.0),
 
     # COUNTER tag architecture
     ("O_Updates.PRE",  "DINT",     10),   # Preset: count target (adjust as needed)
