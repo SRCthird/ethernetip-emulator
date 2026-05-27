@@ -32,7 +32,7 @@ def on_timer_done(attr, key, value):
 if __name__ == "__main__":
     # EXAMPLE:
     with AttributeDevice._actions.bind(AttributeDevice) as actions:
-        actions.start_increment(tag_name="O_INCR")
+        actions.start_increment(tag_name="O_INCR", wrap=32766)
         actions.start_timer("O_Timer", enable="O_Timer.EN")
         actions.on_change("O_Timer.DN", on_timer_done)
         actions.on_change("I_TEXT", I_TEXT)
