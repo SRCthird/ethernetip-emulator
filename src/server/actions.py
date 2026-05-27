@@ -62,6 +62,34 @@ class AttributeActions:
         # Factory used to create worker threads
         self._thread_factory = thread_factory
 
+    def __enter__(self) -> "AttributeActions":
+        """Support use as a context manager; returns self."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
+        """
+        Support use as a context manager.
+
+        Signals all worker threads to stop and joins each one, ensuring a
+        clean shutdown when the ``with`` block exits — whether normally or
+        due to an exception. Exceptions are never suppressed.
+
+        Example::
+
+            with AttributeActions().bind(MyAttrClass) as actions:
+                actions.start_counter("MyTag")
+            # All workers have been stopped and joined here.
+        """
+        self.stop()
+        for t in self._threads:
+            t.join()
+
+
     def bind(self, attr_class: type) -> "AttributeActions":
         """
         Bind this actions object to an attribute class.
