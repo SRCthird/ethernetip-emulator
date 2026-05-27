@@ -39,11 +39,22 @@ def build_tag_specs_argv(
 # Default tag specifications.
 # You can still replace TAG_SPECS in tests, or bypass this constant entirely
 # by calling build_tag_specs_argv with your own tag_specs.
-TAG_SPECS: List[Tuple[str, str, Any]] = [
-    # Example:
-    ("I_TEXT", "BOOL", 0),
-    ("O_TEXT", "BOOL", 0),
+TAG_SPECS = [
+    # (tag_name,    type_spec,  default)
+
+    ("I_TEXT", "SSTRING[255]", ""),
+    ("O_TEXT", "SSTRING[255]", ""),
+
     ("O_INCR", "DINT", 0),
+
+    # COUNTER tag architecture
+    ("O_Updates.PRE",  "DINT",     10),   # Preset: count target (adjust as needed)
+    ("O_Updates.ACC",  "DINT",     0),    # Accumulator: current count
+    ("O_Updates.CU",   "BOOL",     0),    # Count-Up enable
+    ("O_Updates.CD",   "BOOL",     0),    # Count-Down enable
+    ("O_Updates.DN",   "BOOL",     0),    # Done (ACC >= PRE)
+    ("O_Updates.OV",   "BOOL",     0),    # Overflow
+    ("O_Updates.UN",   "BOOL",     0),    # Underflow
 ]
 
 # Convenience module-level argv built from TAG_SPECS.
