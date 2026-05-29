@@ -18,6 +18,8 @@
 "O_UPDATES.CD","O_UPDATES.CD",Boolean,1,R/W,100,,,,,,,,,,"",
 "O_UPDATES.CU","O_UPDATES.CU",Boolean,1,R/W,100,,,,,,,,,,"",
 "O_UPDATES.DN","O_UPDATES.DN",Boolean,1,R/W,100,,,,,,,,,,"",
+"O_UPDATES.LAZY","O_UPDATES.LAZY",Long,1,R/W,100,,,,,,,,,,"",
 "O_UPDATES.OV","O_UPDATES.OV",Boolean,1,R/W,100,,,,,,,,,,"",
 "O_UPDATES.PRE","O_UPDATES.PRE",Long,1,R/W,100,,,,,,,,,,"",
+"O_UPDATES.RES","O_UPDATES.RES",Boolean,1,R/W,100,,,,,,,,,,"",
 "O_UPDATES.UN","O_UPDATES.UN",Boolean,1,R/W,100,,,,,,,,,,"",
