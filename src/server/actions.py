@@ -37,7 +37,10 @@ class AttributeActions:
             thread_factory = default_thread_factory
 
         self._thread_factory = thread_factory
+
+        self.increment = self.Increment(self)
         self.counter = self.Counter(self)
+        self.timer = self.Timer(self)
 
     def __enter__(self) -> "AttributeActions":
         return self
@@ -128,61 +131,84 @@ class AttributeActions:
                     f"AttributeActions: listener error for {tag_name}: {exc}"
                 )
 
-    def start_increment(
-        self,
-        tag_name: str,
-        *,
-        period: float = 1.0,
-        key: Any = 0,
-        start: int | None = 0,
-        increment: int = 1,
-        wrap: int | None = None,
-        initial_delay: float = 1.0,
-    ) -> "AttributeActions":
-        def worker() -> None:
-            self.run_increment_worker(
-                tag_name=tag_name,
-                period=period,
-                key=key,
-                start=start,
-                increment=increment,
-                wrap=wrap,
-                initial_delay=initial_delay,
-            )
-        return self._start_worker(f"{tag_name}-increment", worker)
+    class Increment:
+        def __init__(self, parent):
+            self.parent = parent
 
-    def run_increment_worker(
-        self,
-        *,
-        tag_name: str,
-        period: float,
-        key: Any,
-        start: int | None,
-        increment: int,
-        wrap: int | None,
-        initial_delay: float,
-    ) -> None:
-        if initial_delay > 0:
-            self._sleep(initial_delay)
+        def start(
+            self,
+            tag_name: str,
+            *,
+            period: float = 1.0,
+            key: Any = 0,
+            increment: int = 1,
+            wrap: int | None = None,
+            initial_delay: float = 1.0,
+            start: int | None = None,
+        ) -> "AttributeActions":
+            def worker() -> None:
+                self.run_worker(
+                    tag_name=tag_name,
+                    period=period,
+                    key=key,
+                    start=start,
+                    increment=increment,
+                    wrap=wrap,
+                    initial_delay=initial_delay,
+                )
+            return self.parent._start_worker(f"{tag_name}-increment", worker)
 
-        n: int | None = start
+        def run_worker(
+            self,
+            *,
+            tag_name: str,
+            period: float,
+            key: Any,
+            start: int | None,
+            increment: int,
+            wrap: int | None,
+            initial_delay: float,
+        ) -> None:
+            if initial_delay > 0:
+                self.parent._sleep(initial_delay)
 
-        while not self._stop.is_set():
-            attr = self._lookup(tag_name)
-            if attr is None:
-                self._sleep(period)
-                continue
+            n: int | None = start
 
-            if n is None:
-                n = self._read_attr(attr, key) or 0
+            while not self.parent._stop.is_set():
+                attr = self.parent._lookup(tag_name)
+                if attr is None:
+                    self.parent._sleep(period)
+                    continue
 
+                if n is None:
+                    n = self.parent._read_attr(attr, key) or 0
+
+                n += increment
+
+                if wrap is not None:
+                    n %= wrap
+
+                self.parent._write_attr(attr, key, n)
+                self.parent._sleep(period)
+
+        def increment(self, tag_name: str, *, increment: int = 1, key: Any = 0) -> None:
+            attr = self.parent._lookup(tag_name)
+            n: int = self.parent._read_attr(attr, key) or 0
             n += increment
+            if attr:
+                self.parent._write_attr(attr, key, n)
 
-            if wrap is not None:
-                n %= wrap
+        def decrement(self, tag_name: str, decrement: int = 1, *, key: Any = 0) -> None:
+            attr = self.parent._lookup(tag_name)
+            n: int = self.parent._read_attr(attr, key) or 0
+            n -= decrement
+            if attr:
+                self.parent._write_attr(attr, key, n)
 
-            self._write_attr(attr, key, n)
-            self._sleep(period)
+        def reset(self, tag_name: str, *, default: int = 0, key: Any = 0) -> None:
+            attr = self.parent._lookup(tag_name)
+            if attr:
+                self.parent._write_attr(attr, key, default)
 
     class Counter:
         def __init__(self, parent):
@@ -364,198 +390,141 @@ class AttributeActions:
                 if attr is not None:
                     self.parent._write_attr(attr, key, value)
 
-    # -------------------------------------------------------------------------
-    # Timer worker
-    # -------------------------------------------------------------------------
+    class Timer:
+        def __init__(self, parent):
+            self.parent = parent
 
-    def start_timer(
-        self,
-        tag_prefix: str,
-        *,
-        period: float = 0.1,
-        key: Any = 0,
-        preset_ms: int | None = None,
-        initial_delay: float = 1.0,
-        enable: str | Callable[[], bool] | None = None,
-    ) -> "AttributeActions":
-        """
-        Start a background thread that simulates a PLC TON (Timer On-Delay).
+        def start(
+            self,
+            tag_prefix: str,
+            *,
+            period: float = 0.1,
+            key: Any = 0,
+            preset_ms: int | None = None,
+            initial_delay: float = 1.0,
+            enable: str | Callable[[], bool] | None = None,
+        ) -> "AttributeActions":
+            def worker() -> None:
+                self.run_worker(
+                    tag_prefix=tag_prefix,
+                    period=period,
+                    key=key,
+                    preset_ms=preset_ms,
+                    initial_delay=initial_delay,
+                    enable=enable,
+                )
+            return self.parent._start_worker(f"{tag_prefix}-timer", worker)
 
-        The timer accumulates elapsed time in milliseconds in ACC and manages
-        the standard TIMER status bits:
+        def run_worker(
+            self,
+            *,
+            tag_prefix: str,
+            period: float,
+            key: Any,
+            preset_ms: int | None,
+            initial_delay: float,
+            enable: str | Callable[[], bool] | None = None,
+        ) -> None:
+            acc_tag = f"{tag_prefix}.ACC"
+            pre_tag = f"{tag_prefix}.PRE"
+            en_tag  = f"{tag_prefix}.EN"
+            tt_tag  = f"{tag_prefix}.TT"
+            dn_tag  = f"{tag_prefix}.DN"
 
-        - **EN** (Enable)       — set True when the enable gate is active.
-        - **TT** (Timer Timing) — True while EN is set and ACC < PRE.
-        - **DN** (Done)         — set True when ACC >= PRE; stays True while
-                                  EN remains active (mirroring TON behaviour).
+            if initial_delay > 0:
+                self.parent._sleep(initial_delay)
 
-        ACC accumulates real elapsed milliseconds via ``time.monotonic()``.
-        When EN drops the timer resets: ACC = 0, TT = 0, DN = 0, EN = 0.
-        PRE is read each cycle so it can be changed at runtime.
+            if preset_ms is not None:
+                pre_attr = self.parent._lookup(pre_tag)
+                if pre_attr is not None:
+                    self.parent._write_attr(pre_attr, key, preset_ms)
 
-        Args:
-            tag_prefix:    Common prefix, e.g. ``"Timer"``.
-            period:        Poll interval in seconds (default 0.1 s = 100 ms).
-            key:           Index/key for all attribute reads and writes.
-            preset_ms:     Override value (ms) written to PRE on startup.
-            initial_delay: One-time delay before the worker starts.
-            enable:        Gate — callable, tag name string, or None (always on).
-        """
-        def worker() -> None:
-            self.run_timer_worker(
-                tag_prefix=tag_prefix,
-                period=period,
-                key=key,
-                preset_ms=preset_ms,
-                initial_delay=initial_delay,
-                enable=enable,
-            )
-        return self._start_worker(f"{tag_prefix}-timer", worker)
+            was_enabled = False
+            t_start: float | None = None
 
-    def run_timer_worker(
-        self,
-        *,
-        tag_prefix: str,
-        period: float,
-        key: Any,
-        preset_ms: int | None,
-        initial_delay: float,
-        enable: str | Callable[[], bool] | None = None,
-    ) -> None:
-        """
-        Core loop for the timer worker; meant to run inside a thread.
+            acc_attr = 0
+            pre_attr = 0
+            en_attr  = 0
+            tt_attr  = 0
+            dn_attr  = 0
+            while not self.parent._stop.is_set():
+                acc_attr = self.parent._lookup(acc_tag)
+                pre_attr = self.parent._lookup(pre_tag)
+                en_attr  = self.parent._lookup(en_tag)
+                tt_attr  = self.parent._lookup(tt_tag)
+                dn_attr  = self.parent._lookup(dn_tag)
 
-        Resolves tags as ``<tag_prefix>.PRE``, ``<tag_prefix>.ACC``, etc.
-        Runs until ``stop()`` is called.
-        """
-        acc_tag = f"{tag_prefix}.ACC"
-        pre_tag = f"{tag_prefix}.PRE"
-        en_tag  = f"{tag_prefix}.EN"
-        tt_tag  = f"{tag_prefix}.TT"
-        dn_tag  = f"{tag_prefix}.DN"
+                if acc_attr is None or pre_attr is None:
+                    self.parent._sleep(period)
+                    continue
 
-        if initial_delay > 0:
-            self._sleep(initial_delay)
+                if enable is None:
+                    gate_open = True
+                elif callable(enable):
+                    gate_open = bool(enable())
+                else:
+                    gate_attr = self.parent._lookup(enable)
+                    gate_open = bool(self.parent._read_attr(gate_attr, key)) if gate_attr is not None else False
 
-        if preset_ms is not None:
-            pre_attr = self._lookup(pre_tag)
-            if pre_attr is not None:
-                self._write_attr(pre_attr, key, preset_ms)
+                if was_enabled and not gate_open:
+                    t_start = None
+                    for attr, val in [
+                        (acc_attr, 0), (en_attr, 0), (tt_attr, 0), (dn_attr, 0),
+                    ]:
+                        if attr is not None:
+                            self.parent._write_attr(attr, key, val)
+                    was_enabled = False
+                    self.parent._sleep(period)
+                    continue
 
-        was_enabled = False
-        t_start: float | None = None
+                if not gate_open:
+                    self.parent._sleep(period)
+                    continue
 
-        acc_attr = 0
-        pre_attr = 0
-        en_attr  = 0
-        tt_attr  = 0
-        dn_attr  = 0
-        while not self._stop.is_set():
-            acc_attr = self._lookup(acc_tag)
-            pre_attr = self._lookup(pre_tag)
-            en_attr  = self._lookup(en_tag)
-            tt_attr  = self._lookup(tt_tag)
-            dn_attr  = self._lookup(dn_tag)
+                if not was_enabled:
+                    t_start = time.monotonic()
+                    was_enabled = True
+                    if en_attr is not None:
+                        self.parent._write_attr(en_attr, key, 1)
 
-            if acc_attr is None or pre_attr is None:
-                self._sleep(period)
-                continue
+                pre = self.parent._read_attr(pre_attr, key) or 0
+                elapsed_ms = int((time.monotonic() - t_start) * 1000) if t_start is not None else 0
+                acc = min(elapsed_ms, pre) if pre > 0 else elapsed_ms
+                self.parent._write_attr(acc_attr, key, acc)
 
-            # --- Evaluate enable gate ---
-            if enable is None:
-                gate_open = True
-            elif callable(enable):
-                gate_open = bool(enable())
-            else:
-                gate_attr = self._lookup(enable)
-                gate_open = bool(self._read_attr(gate_attr, key)) if gate_attr is not None else False
+                if pre > 0 and elapsed_ms >= pre:
+                    if tt_attr is not None:
+                        self.parent._write_attr(tt_attr, key, 0)
+                    if dn_attr is not None:
+                        self.parent._write_attr(dn_attr, key, 1)
+                else:
+                    if tt_attr is not None:
+                        self.parent._write_attr(tt_attr, key, 1)
+                    if dn_attr is not None:
+                        self.parent._write_attr(dn_attr, key, 0)
 
-            # --- Falling edge: gate just closed — reset timer ---
-            if was_enabled and not gate_open:
-                t_start = None
-                for attr, val in [
-                    (acc_attr, 0), (en_attr, 0), (tt_attr, 0), (dn_attr, 0),
-                ]:
-                    if attr is not None:
-                        self._write_attr(attr, key, val)
-                was_enabled = False
-                self._sleep(period)
-                continue
+                self.parent._sleep(period)
 
-            if not gate_open:
-                self._sleep(period)
-                continue
+            for attr in [acc_attr, en_attr, tt_attr, dn_attr]:
+                if attr is not None:
+                    self.parent._write_attr(attr, key, 0)
 
-            # --- Rising edge: gate just opened — start timing ---
-            if not was_enabled:
-                t_start = time.monotonic()
-                was_enabled = True
-                if en_attr is not None:
-                    self._write_attr(en_attr, key, 1)
-
-            pre = self._read_attr(pre_attr, key) or 0
-            elapsed_ms = int((time.monotonic() - t_start) * 1000) if t_start is not None else 0
-            acc = min(elapsed_ms, pre) if pre > 0 else elapsed_ms
-            self._write_attr(acc_attr, key, acc)
-
-            if pre > 0 and elapsed_ms >= pre:
-                if tt_attr is not None:
-                    self._write_attr(tt_attr, key, 0)
-                if dn_attr is not None:
-                    self._write_attr(dn_attr, key, 1)
-            else:
-                if tt_attr is not None:
-                    self._write_attr(tt_attr, key, 1)
-                if dn_attr is not None:
-                    self._write_attr(dn_attr, key, 0)
-
-            self._sleep(period)
-
-        # Worker stopping — clear all timer bits using last-resolved attrs
-        for attr in [acc_attr, en_attr, tt_attr, dn_attr]:
-            if attr is not None:
-                self._write_attr(attr, key, 0)
-
-    # -------------------------------------------------------------------------
-    # Timer manual controls
-    # -------------------------------------------------------------------------
-
-    def timer_reset(self, tag_prefix: str, *, key: Any = 0) -> None:
-        """
-        Manually reset a timer to its initial state.
-
-        Writes ACC = 0, EN = 0, TT = 0, DN = 0. PRE is left unchanged.
-        Safe to call while a timer worker is running.
-        """
-        for tag in [
-            f"{tag_prefix}.ACC",
-            f"{tag_prefix}.EN",
-            f"{tag_prefix}.TT",
-            f"{tag_prefix}.DN",
-        ]:
-            attr = self._lookup(tag)
-            if attr is not None:
-                self._write_attr(attr, key, 0)
-
-    # -------------------------------------------------------------------------
-    # Lifecycle
-    # -------------------------------------------------------------------------
+        def reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+            for tag in [
+                f"{tag_prefix}.ACC",
+                f"{tag_prefix}.EN",
+                f"{tag_prefix}.TT",
+                f"{tag_prefix}.DN",
+                f"{tag_prefix}.RES",
+            ]:
+                attr = self.parent._lookup(tag)
+                if attr is not None:
+                    self.parent._write_attr(attr, key, 0)
 
     def stop(self) -> None:
-        """Signal all workers to stop."""
         self._stop.set()
 
-    # -------------------------------------------------------------------------
-    # on_set dispatcher
-    # -------------------------------------------------------------------------
-
     def on_set(self, attr: Any, key: Any, value: Any) -> None:
-        """
-        Dispatch logic whenever an attribute value is set.
-
-        Called by ``AttributeDevice.__setitem__`` on every write.
-        Fires all registered ``on_change`` listeners for the written tag.
-        """
         tag_name = getattr(attr, "name", None)
         if tag_name is not None:
             self._fire_listeners(tag_name, attr, key, value)
