@@ -61,6 +61,7 @@ TAG_SPECS = [
     ("O_Updates.DN",   "BOOL",     0),    # Done (ACC >= PRE)
     ("O_Updates.OV",   "BOOL",     0),    # Overflow
     ("O_Updates.UN",   "BOOL",     0),    # Underflow
+    ("O_Updates.RES",  "BOOL",     0),    # Reset 
 
     # TIMER tag architecture
     ("O_Timer.PRE",  "DINT",     5000),   # Preset: count target (adjust as needed)

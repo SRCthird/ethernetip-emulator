@@ -12,7 +12,7 @@ def I_TEXT(attr, key, value) -> None:
     output_count_done = registry.get("O_Updates.DN")
     if output_tag is not None:
         try:
-            AttributeDevice._actions.counter_increment("O_Updates")
+            AttributeDevice._actions.counter.increment("O_Updates")
             if output_count_done is not None and output_count_done[key][0]:
                 output_tag[key] = ["Count Completed"]
             else:
@@ -29,6 +29,12 @@ def on_timer_done(attr, key, value):
         if timer_enabled is not None:
             timer_enabled[key] = 0
 
+def reset_timer(attr, key, value):
+    registry = getattr(type(attr), "registry", {})
+    counter_reset = registry.get("O_Updates.RES")
+    if counter_reset is not None and counter_reset[key][0]:
+        AttributeDevice._actions.counter.reset("O_Updates")
+
 if __name__ == "__main__":
     # EXAMPLE:
     with AttributeDevice._actions.bind(AttributeDevice) as actions:
@@ -36,6 +42,7 @@ if __name__ == "__main__":
         actions.start_timer("O_Timer", enable="O_Timer.EN")
         actions.on_change("O_Timer.DN", on_timer_done)
         actions.on_change("I_TEXT", I_TEXT)
+        actions.on_change("O_Updates.RES", reset_timer)
     
         enip_main(
             argv=TAG_ARGV,
