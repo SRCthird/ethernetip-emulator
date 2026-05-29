@@ -13,6 +13,7 @@ def I_TEXT(attr, key, value) -> None:
     if output_tag is not None:
         try:
             AttributeDevice._actions.counter.increment("O_Updates")
+            AttributeDevice._actions.increment.increment("O_Updates.LAZY")
             if output_count_done is not None and output_count_done[key][0]:
                 output_tag[key] = ["Count Completed"]
             else:

@@ -54,21 +54,23 @@ TAG_SPECS = [
     ("O_32Bit_Float", "REAL",  0.0),
 
     # COUNTER tag architecture
-    ("O_Updates.PRE",  "DINT",     10),   # Preset: count target (adjust as needed)
-    ("O_Updates.ACC",  "DINT",     0),    # Accumulator: current count
-    ("O_Updates.CU",   "BOOL",     0),    # Count-Up enable
-    ("O_Updates.CD",   "BOOL",     0),    # Count-Down enable
-    ("O_Updates.DN",   "BOOL",     0),    # Done (ACC >= PRE)
-    ("O_Updates.OV",   "BOOL",     0),    # Overflow
-    ("O_Updates.UN",   "BOOL",     0),    # Underflow
-    ("O_Updates.RES",  "BOOL",     0),    # Reset 
+    ("O_Updates.PRE", "DINT",  10),   # Preset: count target (adjust as needed)
+    ("O_Updates.ACC", "DINT",  0),    # Accumulator: current count
+    ("O_Updates.CU",  "BOOL",  0),    # Count-Up enable
+    ("O_Updates.CD",  "BOOL",  0),    # Count-Down enable
+    ("O_Updates.DN",  "BOOL",  0),    # Done (ACC >= PRE)
+    ("O_Updates.OV",  "BOOL",  0),    # Overflow
+    ("O_Updates.UN",  "BOOL",  0),    # Underflow
+    ("O_Updates.RES", "BOOL",  0),    # Reset 
+
+    ("O_Updates.LAZY", "INT",  0),    # Lazy update counter using increments class
 
     # TIMER tag architecture
-    ("O_Timer.PRE",  "DINT",     5000),   # Preset: count target (adjust as needed)
-    ("O_Timer.ACC",  "DINT",     0),      # Accumulator: current count
-    ("O_Timer.EN",   "BOOL",     0),      # Count-Up enable
-    ("O_Timer.TT",   "BOOL",     0),      # Count-Down enable
-    ("O_Timer.DN",   "BOOL",     0),      # Done (ACC >= PRE)
+    ("O_Timer.PRE", "DINT",    5000), # Preset: count target (adjust as needed)
+    ("O_Timer.ACC", "DINT",    0),    # Accumulator: current count
+    ("O_Timer.EN",  "BOOL",    0),    # Count-Up enable
+    ("O_Timer.TT",  "BOOL",    0),    # Count-Down enable
+    ("O_Timer.DN",  "BOOL",    0),    # Done (ACC >= PRE)
 
 ]
 
