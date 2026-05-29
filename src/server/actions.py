@@ -7,7 +7,7 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable
 
 
 class AttributeActions:
@@ -34,7 +34,7 @@ class AttributeActions:
         # Keep references to all worker threads so they can be joined externally if needed
         self._threads: list[threading.Thread] = []
         # Weak reference to the attribute class (so we do not prevent it from being GC'd)
-        self._attr_class_ref: Optional[weakref.ReferenceType[Any]] = None
+        self._attr_class_ref: weakref.ref[Any] | None = None
 
         # Injectable sleep function (useful for testing)
         self._sleep = sleep_fn
@@ -44,19 +44,15 @@ class AttributeActions:
         # Registry of change listeners: tag_name -> list of (callback, key_filter)
         # key_filter=None means fire for any key; otherwise only fire when key matches.
         # Callback signature: (attr, key, value) — same as on_set.
-        self._listeners: Dict[
-            str, List[tuple[Callable[[Any, Any, Any], None], Optional[Any]]]
+        self._listeners: dict[
+            str, list[tuple[Callable[[Any, Any, Any], None], Any | None]]
         ] = {}
         # Lock protecting _listeners so on_set and on_change are thread-safe
         self._listener_lock = threading.Lock()
 
-        # Provide a default thread factory if none is supplied
         if thread_factory is None:
-
             def default_thread_factory(**kwargs: Any) -> threading.Thread:
-                # Create a standard Python thread with the given kwargs
                 return threading.Thread(**kwargs)
-
             thread_factory = default_thread_factory
 
         # Factory used to create worker threads
@@ -68,9 +64,9 @@ class AttributeActions:
 
     def __exit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any],
+        exc_type: type | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
     ) -> None:
         """
         Support use as a context manager.
@@ -89,7 +85,6 @@ class AttributeActions:
         for t in self._threads:
             t.join()
 
-
     def bind(self, attr_class: type) -> "AttributeActions":
         """
         Bind this actions object to an attribute class.
@@ -101,7 +96,7 @@ class AttributeActions:
         self._attr_class_ref = weakref.ref(attr_class)
         return self
 
-    def _get_attr_class(self) -> Optional[type]:
+    def _get_attr_class(self) -> Any | None:
         """
         Resolve and return the bound attribute class, if it is still alive.
 
@@ -114,7 +109,7 @@ class AttributeActions:
     # Private attribute I/O helpers
     # -------------------------------------------------------------------------
 
-    def _read_attr(self, attr: Any, key: Any) -> Optional[int]:
+    def _read_attr(self, attr: Any, key: Any) -> int | None:
         """
         Read the current value of an attribute.
 
@@ -132,16 +127,18 @@ class AttributeActions:
         Write a value to an attribute.
 
         Tries item assignment first, then falls back to setting `.value`.
+        Narrows the caught exceptions so genuine programming errors are not
+        silently swallowed.
         """
         try:
             attr[key] = value
-        except Exception:
-            if hasattr(attr, "__setitem__"):
-                pass  # Item assignment is supported but failed — ignore
-            elif hasattr(attr, "value"):
+        except (TypeError, KeyError, IndexError):
+            if hasattr(attr, "value"):
                 setattr(attr, "value", value)
+            else:
+                raise
 
-    def _lookup(self, tag_name: str) -> Optional[Any]:
+    def _lookup(self, tag_name: str) -> Any | None:
         """
         Resolve a tag name to its attribute object via the bound class registry.
 
@@ -156,6 +153,13 @@ class AttributeActions:
             self._logger(f"AttributeActions: attr is None for {tag_name}")
         return attr
 
+    def _start_worker(self, name: str, fn: Callable[[], None]) -> "AttributeActions":
+        """Create, start, and track a daemon worker thread."""
+        t = self._thread_factory(target=fn, daemon=True, name=name)
+        t.start()
+        self._threads.append(t)
+        return self
+
     # -------------------------------------------------------------------------
     # Change listeners
     # -------------------------------------------------------------------------
@@ -165,7 +169,7 @@ class AttributeActions:
         tag_name: str,
         callback: Callable[[Any, Any, Any], None],
         *,
-        key: Optional[Any] = None,
+        key: Any | None = None,
     ) -> "AttributeActions":
         """
         Register a callback to be fired whenever a tag's value is written.
@@ -181,9 +185,9 @@ class AttributeActions:
                           def handler(attr: Any, key: Any, value: Any) -> None:
                               ...
 
-                      ``attr``  — the attribute object that was written (same as in ``on_set``).
-                      ``key``      — the index/key that was written.
-                      ``value``    — the new value.
+                      ``attr``  — the attribute object that was written.
+                      ``key``   — the index/key that was written.
+                      ``value`` — the new value.
 
             key:      Optional key filter. When provided, the callback fires
                       only when the written key matches this value. When
@@ -265,24 +269,23 @@ class AttributeActions:
         *,
         period: float = 1.0,
         key: Any = 0,
-        start: Optional[int] = 0,
+        start: int | None = 0,
         increment: int = 1,
-        wrap: Optional[int] = None,
+        wrap: int | None = None,
         initial_delay: float = 1.0,
     ) -> "AttributeActions":
         """
         Start a background thread that periodically increments an attribute.
 
         Args:
-            tag_name: Name of the attribute in `attr_class.registry`.
-            period: Delay (seconds) between successive increments.
-            key: Index/key used when writing to the attribute (e.g. array index).
-            start: Initial value to start from; if None, read the current value.
-            increment: Step to add on each period.
-            wrap: If not None, apply modulo `wrap` after increment (cyclic counter).
+            tag_name:      Name of the attribute in `attr_class.registry`.
+            period:        Delay (seconds) between successive increments.
+            key:           Index/key used when writing to the attribute.
+            start:         Initial value; if None, read the current value.
+            increment:     Step to add on each period.
+            wrap:          If not None, apply modulo `wrap` after increment.
             initial_delay: One-time delay before the worker starts updating.
         """
-
         def worker() -> None:
             self.run_increment_worker(
                 tag_name=tag_name,
@@ -293,15 +296,7 @@ class AttributeActions:
                 wrap=wrap,
                 initial_delay=initial_delay,
             )
-
-        t = self._thread_factory(
-            target=worker,
-            daemon=True,
-            name=f"{tag_name}-increment",
-        )
-        t.start()
-        self._threads.append(t)
-        return self
+        return self._start_worker(f"{tag_name}-increment", worker)
 
     def run_increment_worker(
         self,
@@ -309,58 +304,38 @@ class AttributeActions:
         tag_name: str,
         period: float,
         key: Any,
-        start: Optional[int],
+        start: int | None,
         increment: int,
-        wrap: Optional[int],
+        wrap: int | None,
         initial_delay: float,
     ) -> None:
         """
         Core loop for the increment worker; meant to run inside a thread.
 
-        This:
-        - waits for an initial delay,
-        - resolves the bound attribute class and the specific attribute,
-        - initializes the counter (from `start` or from the current value),
-        - increments the value periodically until `stop()` is called.
+        Waits for an initial delay, resolves the attribute, initialises the
+        counter (from `start` or from the current value), then increments
+        periodically until `stop()` is called.
         """
         if initial_delay > 0:
             self._sleep(initial_delay)
 
-        n: Optional[int] = start
+        n: int | None = start
 
         while not self._stop.is_set():
-            attr_class = self._get_attr_class()
-            if attr_class is None:
-                self._logger(f"AttributeActions: attr_class is None for {tag_name}")
-                self._sleep(period)
-                continue
-
-            attr = getattr(attr_class, "registry", {}).get(tag_name)
+            attr = self._lookup(tag_name)
             if attr is None:
-                self._logger(f"AttributeActions: attr is None for {tag_name}")
                 self._sleep(period)
                 continue
 
             if n is None:
-                try:
-                    current = attr[key]
-                except Exception:
-                    current = getattr(attr, "value", None)
-                n = int(current or 0)
+                n = self._read_attr(attr, key) or 0
 
             n += increment
 
             if wrap is not None:
                 n %= wrap
 
-            try:
-                attr[key] = n
-            except Exception:
-                if hasattr(attr, "__setitem__"):
-                    pass
-                elif hasattr(attr, "value"):
-                    setattr(attr, "value", n)
-
+            self._write_attr(attr, key, n)
             self._sleep(period)
 
     # -------------------------------------------------------------------------
@@ -376,9 +351,9 @@ class AttributeActions:
         *,
         period: float = 1.0,
         key: Any = 0,
-        preset: Optional[int] = None,
+        preset: int | None = None,
         initial_delay: float = 1.0,
-        enable: Optional[Union[str, Callable[[], bool]]] = None,
+        enable: str | Callable[[], bool] | None = None,
     ) -> "AttributeActions":
         """
         Start a background thread that simulates PLC COUNTER behaviour.
@@ -391,37 +366,22 @@ class AttributeActions:
                                 and DN is cleared on the next cycle.
         - **OV**  (Overflow)  — set True for one cycle when ACC would exceed
                                 DINT_MAX; ACC wraps to 0.
-        - **UN**  (Underflow) — not driven by this worker (no count-down logic);
-                                left at its current value.
+        - **UN**  (Underflow) — not driven by this worker; left at its current value.
         - **CD**  (Count-Down)— not driven by this worker; left at its current value.
 
         The PRE tag is read from the registry each cycle, so it can be changed
-        at runtime by an external write without restarting the worker.
+        at runtime without restarting the worker.
 
         Args:
             tag_prefix:    Common prefix for the counter tags, e.g. ``"MyTag"``.
-                           The worker will look up ``<tag_prefix>.PRE``,
-                           ``<tag_prefix>.ACC``, ``<tag_prefix>.CU``, etc.
             period:        Seconds between successive increments.
             key:           Index/key used for all attribute reads and writes.
-            preset:        Override value written to PRE on startup. If None,
-                           the existing value in the registry is used.
-            initial_delay: One-time delay (seconds) before the first increment.
-            enable:        Optional gate that controls whether the counter
-                           increments on each cycle. Accepts either:
-
-                           - A **callable** ``() -> bool``: called each cycle;
-                             the counter increments only when it returns True.
-                           - A **tag name string**: the named tag is read from
-                             the registry each cycle; the counter increments
-                             only when the tag's value is truthy.
-
-                           When the gate is False the worker sleeps for
-                           ``period`` and tries again next cycle — ACC and all
-                           status bits are left unchanged. If ``enable`` is
-                           None (default), the counter always increments.
+            preset:        Override value written to PRE on startup.
+            initial_delay: One-time delay before the first increment.
+            enable:        Optional gate — callable ``() -> bool`` or a tag name
+                           string. Counter increments only when the gate is True.
+                           None (default) means always increment.
         """
-
         def worker() -> None:
             self.run_counter_worker(
                 tag_prefix=tag_prefix,
@@ -431,15 +391,7 @@ class AttributeActions:
                 initial_delay=initial_delay,
                 enable=enable,
             )
-
-        t = self._thread_factory(
-            target=worker,
-            daemon=True,
-            name=f"{tag_prefix}-counter",
-        )
-        t.start()
-        self._threads.append(t)
-        return self
+        return self._start_worker(f"{tag_prefix}-counter", worker)
 
     def run_counter_worker(
         self,
@@ -447,9 +399,9 @@ class AttributeActions:
         tag_prefix: str,
         period: float,
         key: Any,
-        preset: Optional[int],
+        preset: int | None,
         initial_delay: float,
-        enable: Optional[Union[str, Callable[[], bool]]] = None,
+        enable: str | Callable[[], bool] | None = None,
     ) -> None:
         """
         Core loop for the counter worker; meant to run inside a thread.
@@ -466,60 +418,49 @@ class AttributeActions:
         if initial_delay > 0:
             self._sleep(initial_delay)
 
-        # Write the preset override once at startup, if provided
         if preset is not None:
             pre_attr = self._lookup(pre_tag)
             if pre_attr is not None:
                 self._write_attr(pre_attr, key, preset)
 
-        # Set CU = True: this worker is a count-up counter
         cu_attr = self._lookup(cu_tag)
         if cu_attr is not None:
             self._write_attr(cu_attr, key, 1)
 
-        # Read the current ACC so we resume correctly if the server was already running
         acc_attr = self._lookup(acc_tag)
         acc: int = self._read_attr(acc_attr, key) if acc_attr is not None else 0
 
         while not self._stop.is_set():
-            # Re-resolve attrs each cycle so late binding and hot-reload work correctly
             acc_attr = self._lookup(acc_tag)
             pre_attr = self._lookup(pre_tag)
             dn_attr  = self._lookup(dn_tag)
             ov_attr  = self._lookup(ov_tag)
 
             if acc_attr is None or pre_attr is None:
-                # Essential tags not available yet — wait and retry
                 self._sleep(period)
                 continue
 
-            # Read the live preset (supports runtime changes to PRE)
             pre: int = self._read_attr(pre_attr, key) or 0
 
             # --- Enable gate check ---
-            # Evaluate the gate before doing any work this cycle.
             if enable is not None:
                 if callable(enable):
-                    # Callable gate: call it and check the result
                     gate_open = bool(enable())
                 else:
-                    # Tag-name gate: read the named tag from the registry
                     gate_attr = self._lookup(enable)
                     gate_open = bool(self._read_attr(gate_attr, key)) if gate_attr is not None else False
 
                 if not gate_open:
-                    # Gate is closed — skip this cycle entirely
                     self._sleep(period)
                     continue
 
-            # --- Overflow guard: ACC is at the DINT ceiling ---
+            # --- Overflow guard ---
             if acc >= self.DINT_MAX:
                 if ov_attr is not None:
                     self._write_attr(ov_attr, key, 1)
                 acc = 0
                 self._write_attr(acc_attr, key, acc)
                 self._sleep(period)
-                # Clear OV on the next cycle
                 if ov_attr is not None:
                     self._write_attr(ov_attr, key, 0)
                 continue
@@ -528,12 +469,11 @@ class AttributeActions:
             acc += 1
             self._write_attr(acc_attr, key, acc)
 
-            # --- Done check: ACC has reached or passed PRE ---
+            # --- Done check ---
             if pre > 0 and acc >= pre:
                 if dn_attr is not None:
                     self._write_attr(dn_attr, key, 1)
                 self._sleep(period)
-                # Reset ACC and clear DN after one cycle
                 acc = 0
                 self._write_attr(acc_attr, key, acc)
                 if dn_attr is not None:
@@ -542,7 +482,7 @@ class AttributeActions:
 
             self._sleep(period)
 
-        # Worker is stopping — clear CU to indicate the counter is no longer running
+        # Worker stopping — clear CU to indicate the counter is no longer running
         cu_attr = self._lookup(cu_tag)
         if cu_attr is not None:
             self._write_attr(cu_attr, key, 0)
@@ -560,7 +500,7 @@ class AttributeActions:
         - If ACC reaches PRE, DN is set and ACC resets to 0.
         - Otherwise ACC is incremented and all status bits are left unchanged.
 
-        This is safe to call concurrently with a running counter worker.
+        Safe to call concurrently with a running counter worker.
         """
         acc_attr = self._lookup(f"{tag_prefix}.ACC")
         pre_attr = self._lookup(f"{tag_prefix}.PRE")
@@ -574,7 +514,6 @@ class AttributeActions:
         acc = self._read_attr(acc_attr, key) or 0
         pre = self._read_attr(pre_attr, key) or 0
 
-        # Overflow guard
         if acc >= self.DINT_MAX:
             if ov_attr is not None:
                 self._write_attr(ov_attr, key, 1)
@@ -585,11 +524,9 @@ class AttributeActions:
         acc += 1
         self._write_attr(acc_attr, key, acc)
 
-        # Clear any leftover OV from a previous overflow
         if ov_attr is not None:
             self._write_attr(ov_attr, key, 0)
 
-        # Done check
         if pre > 0 and acc >= pre:
             if dn_attr is not None:
                 self._write_attr(dn_attr, key, 1)
@@ -602,7 +539,7 @@ class AttributeActions:
         - DN is cleared if ACC drops below PRE.
         - Otherwise ACC is decremented and all other status bits are left unchanged.
 
-        This is safe to call concurrently with a running counter worker.
+        Safe to call concurrently with a running counter worker.
         """
         acc_attr = self._lookup(f"{tag_prefix}.ACC")
         pre_attr = self._lookup(f"{tag_prefix}.PRE")
@@ -616,7 +553,6 @@ class AttributeActions:
         acc = self._read_attr(acc_attr, key) or 0
         pre = self._read_attr(pre_attr, key) or 0 if pre_attr is not None else 0
 
-        # Underflow guard
         if acc <= self.DINT_MIN:
             if un_attr is not None:
                 self._write_attr(un_attr, key, 1)
@@ -627,11 +563,9 @@ class AttributeActions:
         acc -= 1
         self._write_attr(acc_attr, key, acc)
 
-        # Clear any leftover UN
         if un_attr is not None:
             self._write_attr(un_attr, key, 0)
 
-        # Clear DN if ACC has dropped back below PRE
         if dn_attr is not None and pre > 0 and acc < pre:
             self._write_attr(dn_attr, key, 0)
 
@@ -639,12 +573,7 @@ class AttributeActions:
         """
         Reset the counter to its initial state.
 
-        Writes:
-        - ACC = 0
-        - DN  = 0
-        - OV  = 0
-        - UN  = 0
-
+        Writes ACC = 0, DN = 0, OV = 0, UN = 0.
         PRE and CU/CD are intentionally left unchanged so that a running
         counter worker can resume counting toward the same preset.
         """
@@ -668,9 +597,9 @@ class AttributeActions:
         *,
         period: float = 0.1,
         key: Any = 0,
-        preset_ms: Optional[int] = None,
+        preset_ms: int | None = None,
         initial_delay: float = 1.0,
-        enable: Optional[Union[str, Callable[[], bool]]] = None,
+        enable: str | Callable[[], bool] | None = None,
     ) -> "AttributeActions":
         """
         Start a background thread that simulates a PLC TON (Timer On-Delay).
@@ -704,15 +633,7 @@ class AttributeActions:
                 initial_delay=initial_delay,
                 enable=enable,
             )
-
-        t = self._thread_factory(
-            target=worker,
-            daemon=True,
-            name=f"{tag_prefix}-timer",
-        )
-        t.start()
-        self._threads.append(t)
-        return self
+        return self._start_worker(f"{tag_prefix}-timer", worker)
 
     def run_timer_worker(
         self,
@@ -720,9 +641,9 @@ class AttributeActions:
         tag_prefix: str,
         period: float,
         key: Any,
-        preset_ms: Optional[int],
+        preset_ms: int | None,
         initial_delay: float,
-        enable: Optional[Union[str, Callable[[], bool]]] = None,
+        enable: str | Callable[[], bool] | None = None,
     ) -> None:
         """
         Core loop for the timer worker; meant to run inside a thread.
@@ -745,7 +666,7 @@ class AttributeActions:
                 self._write_attr(pre_attr, key, preset_ms)
 
         was_enabled = False
-        t_start: Optional[float] = None
+        t_start: float | None = None
 
         while not self._stop.is_set():
             acc_attr = self._lookup(acc_tag)
@@ -808,9 +729,8 @@ class AttributeActions:
 
             self._sleep(period)
 
-        # Worker stopping — clean up all timer bits
-        for tag in [acc_tag, en_tag, tt_tag, dn_tag]:
-            attr = self._lookup(tag)
+        # Worker stopping — clear all timer bits using last-resolved attrs
+        for attr in [acc_attr, en_attr, tt_attr, dn_attr]:
             if attr is not None:
                 self._write_attr(attr, key, 0)
 
@@ -851,12 +771,9 @@ class AttributeActions:
         """
         Dispatch logic whenever an attribute value is set.
 
-        Called by ``AttributeDevice.__setitem__`` on every write. Fires
-        registered ``on_change`` listeners for the tag, then routes to any
-        named handler method via the match block below.
+        Called by ``AttributeDevice.__setitem__`` on every write.
+        Fires all registered ``on_change`` listeners for the written tag.
         """
         tag_name = getattr(attr, "name", None)
-
-        # Fire all on_change listeners registered for this tag
         if tag_name is not None:
             self._fire_listeners(tag_name, attr, key, value)
