@@ -44,6 +44,8 @@ class AttributeActions:
         self.timer = Timer(self)
 
     def __enter__(self) -> "AttributeActions":
+        if self._stop.is_set():
+            self._stop.clear()
         return self
 
     def __exit__(
@@ -55,6 +57,8 @@ class AttributeActions:
         self.stop()
         for t in self._threads:
             t.join()
+        self._stop.clear()
+        self._threads.clear()
 
     def bind(self, attr_class: type) -> "AttributeActions":
         self._attr_class_ref = weakref.ref(attr_class)
@@ -66,9 +70,12 @@ class AttributeActions:
     def _read_attr(self, attr: Any, key: Any) -> int | None:
         try:
             return int(attr[key])
-        except Exception:
+        except Exception as e:
             val = getattr(attr, "value", None)
-            return int(val) if val is not None else None
+            if val is not None:
+                return int(val)
+            self._logger(f"Failed to read {key} from attr: {e}")
+            return None
 
     def _write_attr(self, attr: Any, key: Any, value: int) -> None:
         try:
@@ -106,16 +113,9 @@ class AttributeActions:
             self._listeners.setdefault(tag_name, []).append((callback, key))
         return self
 
-    def remove_listener(
-        self,
-        tag_name: str,
-        callback: Callable[[Any, Any, Any], None],
-    ) -> "AttributeActions":
+    def remove_listeners(self, tag_name: str) -> "AttributeActions":
         with self._listener_lock:
-            entries = self._listeners.get(tag_name, [])
-            self._listeners[tag_name] = [
-                (cb, k) for cb, k in entries if cb is not callback
-            ]
+            self._listeners.pop(tag_name, None)
         return self
 
     def _fire_listeners(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
@@ -134,6 +134,14 @@ class AttributeActions:
 
     def stop(self) -> None:
         self._stop.set()
+        self._listeners.clear()
+
+    def join(self, timeout: float | None = None) -> None:
+        for t in self._threads:
+            t.join(timeout=timeout)
+
+    def is_running(self) -> bool:
+        return any(t.is_alive() for t in self._threads)
 
     def on_set(self, attr: Any, key: Any, value: Any) -> None:
         tag_name = getattr(attr, "name", None)
