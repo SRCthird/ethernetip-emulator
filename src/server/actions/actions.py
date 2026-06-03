@@ -9,7 +9,7 @@ import time
 import weakref
 from typing import Any, Callable
 
-from src.server.actions import Counter, Increment, Timer
+from src.server.actions import Counter, Increment, Timer, String
 
 class AttributeActions:
     DINT_MAX: int = 2_147_483_647
@@ -42,6 +42,7 @@ class AttributeActions:
         self.increment = Increment(self)
         self.counter = Counter(self)
         self.timer = Timer(self)
+        self.string = String(self)
 
     def __enter__(self) -> "AttributeActions":
         if self._stop.is_set():
@@ -132,21 +133,6 @@ class AttributeActions:
                     f"AttributeActions: listener error for {tag_name}: {exc}"
                 )
 
-    def _string_len_helper(self, name_prefix: str, key: Any, value: str) -> None:
-        data_tag = self._lookup(f"{name_prefix}.DATA")
-        len_tag = self._lookup(f"{name_prefix}.LEN")
-
-        if data_tag is None or len_tag is None:
-            return
-
-        new_value = value[0] if isinstance(value, list) else value
-
-        try:
-            len_tag[key] = len(new_value) 
-        except Exception:
-            if hasattr(len_tag, "value"):
-                len_tag.value =len(new_value) 
-
     def stop(self) -> None:
         self._stop.set()
         self._listeners.clear()
@@ -164,9 +150,8 @@ class AttributeActions:
         if tag_name is None:
             return
 
-
         if tag_name.endswith(".DATA"):
             name_prefix = tag_name[: -len(".DATA")]
-            self._string_len_helper(name_prefix, key, value)
+            self.string._len_helper(name_prefix, key, value)
 
         self._fire_listeners(tag_name, attr, key, value)

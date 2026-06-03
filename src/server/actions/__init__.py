@@ -5,6 +5,8 @@
 from src.server.actions.increment import Increment
 from src.server.actions.counter import Counter
 from src.server.actions.timer import Timer
+from src.server.actions.string import String
+
 from src.server.actions.actions import AttributeActions
 
-__all__ = ["AttributeActions", "Increment", "Counter", "Timer"]
+__all__ = ["AttributeActions", "Increment", "Counter", "Timer", "String"]
