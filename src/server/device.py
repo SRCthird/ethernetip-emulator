@@ -2,42 +2,11 @@
 # All rights reserved
 
 # src/server/device.py
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional
 
 from cpppo.server.enip import device
 from src.server.tag_specs import TAG_SPECS
 from src.server.actions import AttributeActions
-
-
-def build_argv(
-    tag_specs: Iterable[Tuple[str, str, Any]],
-    base_args: Optional[Sequence[str]] = None,
-) -> List[str]:
-    """
-    Build a command-line style argv list from tag specifications.
-
-    Each tag spec is a tuple: (name, type_spec, default).
-    This converts them into strings of the form "name=type_spec" and appends
-    them to an optional base argument sequence.
-    """
-    if base_args is None:
-        # If no base args are provided, start with an empty list
-        base_args = []
-
-    # Start from a mutable copy of base_args
-    argv = list(base_args)
-    # Add "name=type_spec" for each tag spec
-    argv.extend(f"{name}={type_spec}" for (name, type_spec, _) in tag_specs)
-    return argv
-
-
-def build_defaults(tag_specs: Iterable[Tuple[str, str, Any]]) -> Dict[str, Any]:
-    """
-    Build a mapping from tag name to its default value.
-
-    Only include entries where a non-None default is specified in the tag spec.
-    """
-    return {name: default for (name, _, default) in tag_specs if default is not None}
 
 
 class AttributeDevice(device.Attribute):
@@ -54,7 +23,7 @@ class AttributeDevice(device.Attribute):
     # Shared actions handler for all AttributeDevice instances
     _actions: AttributeActions = AttributeActions()
     # Shared defaults built from TAG_SPECS (name -> default value)
-    _defaults: Mapping[str, Any] = build_defaults(TAG_SPECS)
+    _defaults: Mapping[str, Any] = {name: default for (name, _, default) in TAG_SPECS if default is not None}
 
     def __init__(
         self,
