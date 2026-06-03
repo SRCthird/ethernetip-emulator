@@ -27,7 +27,7 @@ See [Software Engineering at Merck](https://engineering.merckgroup.com/docs/dev/
 src/
   client/          # not implemented
   server/
-    actions.py     # side effects, increment worker, event handlers
+    actions/*      # side effects, increment worker, event handlers
     device.py      # AttributeDevice + defaults/argv helpers
     tag_specs.py   # TAG_SPECS + argv builder
 tests/
