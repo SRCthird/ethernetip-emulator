@@ -150,8 +150,8 @@ def build_tag_specs_argv(
 TAG_SPECS = build_tag_specs([
     # (tag_name,    type_spec,  default)
 
-    ("I_TEXT", "SSTRING[255]", ""),
-    ("O_TEXT", "SSTRING[255]", ""),
+    ("I_TEXT", "STRING", ""),
+    ("O_TEXT", "STRING", ""),
 
     ("O_INCR", "INT", 0),
     ("O_Updates.LAZY", "INT",   0),      # lazy counter (separate)
