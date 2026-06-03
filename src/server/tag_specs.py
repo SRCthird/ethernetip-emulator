@@ -59,6 +59,19 @@ def expand_timer(name: str, preset: int) -> List[Tuple[str, str, Any]]:
         (f"{name}.DN",  "BOOL", 0),
     ]
 
+def expand_string(name: str, preset: str) -> List[Tuple[str, str, Any]]:
+    """
+    Expand a virtual STRING tag into its individual sub-tags.
+
+    Sub-tags mirror the Allen-Bradley / Studio 5000 STRING structure:
+        .LEN  – Current length of the string content (DINT)
+        .DATA – Fixed 82-element string holding the character bytes
+    """
+    return [
+        (f"{name}.LEN",  "DINT",     len(preset)),
+        (f"{name}.DATA", "SSTRING[82]", preset),
+    ]
+
 
 # ---------------------------------------------------------------------------
 # Composite-type registry
@@ -67,6 +80,7 @@ def expand_timer(name: str, preset: int) -> List[Tuple[str, str, Any]]:
 _EXPANDERS = {
     "COUNTER": expand_counter,
     "TIMER":   expand_timer,
+    "STRING":  expand_string,
 }
 
 
@@ -140,17 +154,18 @@ TAG_SPECS = build_tag_specs([
     ("O_TEXT", "SSTRING[255]", ""),
 
     ("O_INCR", "INT", 0),
+    ("O_Updates.LAZY", "INT",   0),      # lazy counter (separate)
 
     # Types of numbers
-    ("O_8Bit",        "SINT",  0),
-    ("O_16Bit",       "INT",   0),
-    ("O_32Bit",       "DINT",  0),
-    ("O_32Bit_Float", "REAL",  0.0),
+    ("O_8Bit",         "SINT",  0),
+    ("O_16Bit",        "INT",   0),
+    ("O_32Bit",        "DINT",  0),
+    ("O_32Bit_Float",  "REAL",  0.0),
 
     # Composite types – expand automatically
     ("O_Updates",       "COUNTER",       1000),   # preset = 1000
-    ("O_Updates.LAZY",  "INT",           0),      # lazy counter (separate)
     ("O_Timer",         "TIMER",         5000),   # preset = 5000 ms
+    ("O_String",          "STRING",        "HELLO"),
 ])
 
 # Convenience module-level argv built from TAG_SPECS.
