@@ -53,38 +53,19 @@ class TagRegistry:
     def __init__(self) -> None:
         self._expanders: dict[str, Callable] = {}
         self._raw: List[Tuple[str, str, Any]] = []
-
-    # ------------------------------------------------------------------
-    # Decorator API
-    # ------------------------------------------------------------------
+        self._type_map: dict[str, str] | None = None
 
     def register(
         self,
         fn: Callable[[], Iterable[Tuple[str, str, Any]]],
     ) -> Callable[[], Iterable[Tuple[str, str, Any]]]:
-        """
-        Decorator: call ``fn`` immediately and collect its tag specs.
-
-        The decorated function is returned unchanged so it can still be
-        called directly (useful in tests).
-
-            @tag_registry.register
-            def _():
-                return [("MY_TAG", "INT", 0)]
-        """
         self._raw.extend(fn())
+        self._type_map = None
         return fn
 
     def expander(
         self, type_spec: str
     ) -> Callable[[Callable], Callable]:
-        """
-        Decorator factory: register a custom composite-type expander.
-
-            @tag_registry.expander("MYFLOATARRAY")
-            def expand_myfloatarray(name, preset):
-                return [(f"{name}[{i}]", "REAL", preset) for i in range(4)]
-        """
         def decorator(fn: Callable) -> Callable:
             self._expanders[type_spec.upper()] = fn
             return fn
@@ -118,14 +99,50 @@ class TagRegistry:
             )
         return result
 
-    def build(self) -> List[Tuple[str, str, Any]]:
-        """
-        Recursively expand all registered raw specs into primitive tag tuples.
+    def _expand_one_typed(
+        self,
+        name: str,
+        type_spec: str,
+        default: Any,
+        origin: str,
+        seen: Optional[Set[str]] = None,
+    ) -> List[Tuple[str, str, Any, str]]:
+        key = type_spec.upper()
+        expander = self._expanders.get(key)
 
-        Returns:
-            Flat list of ``(name, type_spec, default)`` containing only
-            primitive types.
-        """
+        if expander is None:
+            return [(name, type_spec, default, origin)]
+
+        if seen is None:
+            seen = set()
+        if key in seen:
+            return [(name, type_spec, default, origin)]
+
+        seen = seen | {key}
+        result: List[Tuple[str, str, Any, str]] = []
+        for child_name, child_type, child_default in expander(name, default):
+            result.extend(
+                self._expand_one_typed(child_name, child_type, child_default, origin, seen)
+            )
+        return result
+
+    def build_type_map(self) -> dict[str, str]:
+        if self._type_map is not None:
+            return self._type_map
+
+        type_map: dict[str, str] = {}
+        for name, type_spec, default in self._raw:
+            origin = type_spec.upper()
+            for prim_name, _, _, src in self._expand_one_typed(name, type_spec, default, origin):
+                type_map[prim_name] = src
+
+        self._type_map = type_map
+        return self._type_map
+
+    def invalidate_type_map(self) -> None:
+        self._type_map = None
+
+    def build(self) -> List[Tuple[str, str, Any]]:
         result: List[Tuple[str, str, Any]] = []
         for name, type_spec, default in self._raw:
             result.extend(self._expand_one(name, type_spec, default))
@@ -135,35 +152,17 @@ class TagRegistry:
         self,
         base_args: Sequence[str] | None = None,
     ) -> List[str]:
-        """
-        Build an argv-like list from the expanded tag specs.
-
-        Args:
-            base_args: Optional sequence of arguments to prepend
-                       (e.g., ``["--print"]``).
-
-        Returns:
-            List of strings such as::
-
-                ["--print", "I_TEXT.LEN=DINT", "I_TEXT.DATA=SSTRING[82]", ...]
-        """
         expanded = self.build()
         argv: List[str] = list(base_args or [])
         argv.extend(f"{name}={type_spec}" for name, type_spec, _ in expanded)
         return argv
 
-    # ------------------------------------------------------------------
-    # Convenience properties
-    # ------------------------------------------------------------------
-
     @property
     def specs(self) -> List[Tuple[str, str, Any]]:
-        """Expanded primitive tag specs (built fresh on every access)."""
         return self.build()
 
     @property
     def argv(self) -> List[str]:
-        """argv with ``--print`` prepended (built fresh on every access)."""
         return self.build_argv(base_args=["--print"])
 
 
