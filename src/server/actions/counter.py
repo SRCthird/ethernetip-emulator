@@ -3,7 +3,8 @@
 
 # src/server/actions/counter.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
     from src.server.actions.actions import AttributeActions
@@ -11,6 +12,20 @@ if TYPE_CHECKING:
 class Counter:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
+
+    @staticmethod
+    @tag_registry.expander("COUNTER")
+    def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
+        return [
+            (f"{name}.PRE", "DINT", preset),
+            (f"{name}.ACC", "DINT", 0),
+            (f"{name}.CU",  "BOOL", 0),
+            (f"{name}.CD",  "BOOL", 0),
+            (f"{name}.DN",  "BOOL", 0),
+            (f"{name}.OV",  "BOOL", 0),
+            (f"{name}.UN",  "BOOL", 0),
+            (f"{name}.RES", "BOOL", 0),
+        ]
 
     def start(
         self,

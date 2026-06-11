@@ -2,172 +2,172 @@
 # All rights reserved
 
 # src/server/tag_specs.py
-from typing import Any, Iterable, List, Sequence, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Sequence, Set, Tuple
 
-# TAG_SPECS is expected to be: List[Tuple[str, str, Any]]
-#   name: str
-#   type_spec: str (e.g., "INT", "BOOL", "COUNTER", "TIMER")
-#   default: Any (or None)
+
+class TagRegistry:
+    """
+    A tag_registry that collects raw tag specs via a decorator and expands
+    composite types (COUNTER, TIMER, STRING) into their primitive sub-tags.
+
+    Expansion is fully recursive: if an expander returns a tuple whose
+    type_spec is itself a registered composite, that tuple is expanded in
+    turn.  A ``seen`` set prevents infinite loops when a circular expander
+    chain is accidentally registered.
+
+    Usage
+    -----
+    In any file that can import the shared tag_registry instance::
+
+        from tag_specs import tag_registry
+
+        @tag_registry.register
+        def _():
+            return [
+                ("I_TEXT",    "STRING",  ""),
+                ("O_INCR",    "INT",      0),
+                ("O_Updates", "COUNTER", 1000),
+            ]
+
+    Calling ``tag_registry.build()`` (or accessing ``tag_registry.specs`` /
+    ``tag_registry.argv``) triggers expansion of all registered specs.
+
+    Custom expanders
+    ----------------
+    Register a new composite type at any point before ``build()`` is called::
+
+        @tag_registry.expander("MYFLOATARRAY")
+        def expand_myfloatarray(name, preset):
+            return [(f"{name}[{i}]", "REAL", preset) for i in range(4)]
+
+    Nested expanders work automatically::
+
+        @tag_registry.expander("CUSTOM_TYPE")
+        def _expand_custom(name, preset):
+            return [
+                (f"{name}",           "STRING", preset),  # will be recursively expanded
+                (f"{name}.SOMETHING", "DINT",   0),
+            ]
+    """
+
+    def __init__(self) -> None:
+        self._expanders: dict[str, Callable] = {}
+        self._raw: List[Tuple[str, str, Any]] = []
+
+    # ------------------------------------------------------------------
+    # Decorator API
+    # ------------------------------------------------------------------
+
+    def register(
+        self,
+        fn: Callable[[], Iterable[Tuple[str, str, Any]]],
+    ) -> Callable[[], Iterable[Tuple[str, str, Any]]]:
+        """
+        Decorator: call ``fn`` immediately and collect its tag specs.
+
+        The decorated function is returned unchanged so it can still be
+        called directly (useful in tests).
+
+            @tag_registry.register
+            def _():
+                return [("MY_TAG", "INT", 0)]
+        """
+        self._raw.extend(fn())
+        return fn
+
+    def expander(
+        self, type_spec: str
+    ) -> Callable[[Callable], Callable]:
+        """
+        Decorator factory: register a custom composite-type expander.
+
+            @tag_registry.expander("MYFLOATARRAY")
+            def expand_myfloatarray(name, preset):
+                return [(f"{name}[{i}]", "REAL", preset) for i in range(4)]
+        """
+        def decorator(fn: Callable) -> Callable:
+            self._expanders[type_spec.upper()] = fn
+            return fn
+        return decorator
+
+    def _expand_one(
+        self,
+        name: str,
+        type_spec: str,
+        default: Any,
+        seen: Optional[Set[str]] = None,
+    ) -> List[Tuple[str, str, Any]]:
+        key = type_spec.upper()
+        expander = self._expanders.get(key)
+
+        if expander is None:
+            return [(name, type_spec, default)]
+
+        if seen is None:
+            seen = set()
+
+        if key in seen:
+            return [(name, type_spec, default)]
+
+        seen = seen | {key}
+
+        result: List[Tuple[str, str, Any]] = []
+        for child_name, child_type, child_default in expander(name, default):
+            result.extend(
+                self._expand_one(child_name, child_type, child_default, seen)
+            )
+        return result
+
+    def build(self) -> List[Tuple[str, str, Any]]:
+        """
+        Recursively expand all registered raw specs into primitive tag tuples.
+
+        Returns:
+            Flat list of ``(name, type_spec, default)`` containing only
+            primitive types.
+        """
+        result: List[Tuple[str, str, Any]] = []
+        for name, type_spec, default in self._raw:
+            result.extend(self._expand_one(name, type_spec, default))
+        return result
+
+    def build_argv(
+        self,
+        base_args: Sequence[str] | None = None,
+    ) -> List[str]:
+        """
+        Build an argv-like list from the expanded tag specs.
+
+        Args:
+            base_args: Optional sequence of arguments to prepend
+                       (e.g., ``["--print"]``).
+
+        Returns:
+            List of strings such as::
+
+                ["--print", "I_TEXT.LEN=DINT", "I_TEXT.DATA=SSTRING[82]", ...]
+        """
+        expanded = self.build()
+        argv: List[str] = list(base_args or [])
+        argv.extend(f"{name}={type_spec}" for name, type_spec, _ in expanded)
+        return argv
+
+    # ------------------------------------------------------------------
+    # Convenience properties
+    # ------------------------------------------------------------------
+
+    @property
+    def specs(self) -> List[Tuple[str, str, Any]]:
+        """Expanded primitive tag specs (built fresh on every access)."""
+        return self.build()
+
+    @property
+    def argv(self) -> List[str]:
+        """argv with ``--print`` prepended (built fresh on every access)."""
+        return self.build_argv(base_args=["--print"])
 
 
 # ---------------------------------------------------------------------------
-# Composite-type expanders
+# Module-level singleton
 # ---------------------------------------------------------------------------
-
-def expand_counter(name: str, preset: int) -> List[Tuple[str, str, Any]]:
-    """
-    Expand a virtual COUNTER tag into its individual sub-tags.
-
-    Sub-tags mirror the Allen-Bradley / Studio 5000 COUNTER structure:
-        .PRE  – Preset value (count target)
-        .ACC  – Accumulator (current count)
-        .CU   – Count-Up enable
-        .CD   – Count-Down enable
-        .DN   – Done bit  (ACC >= PRE)
-        .OV   – Overflow
-        .UN   – Underflow
-        .RES  – Reset
-    """
-    return [
-        (f"{name}.PRE", "DINT", preset),
-        (f"{name}.ACC", "DINT", 0),
-        (f"{name}.CU",  "BOOL", 0),
-        (f"{name}.CD",  "BOOL", 0),
-        (f"{name}.DN",  "BOOL", 0),
-        (f"{name}.OV",  "BOOL", 0),
-        (f"{name}.UN",  "BOOL", 0),
-        (f"{name}.RES", "BOOL", 0),
-    ]
-
-
-def expand_timer(name: str, preset: int) -> List[Tuple[str, str, Any]]:
-    """
-    Expand a virtual TIMER tag into its individual sub-tags.
-
-    Sub-tags mirror the Allen-Bradley / Studio 5000 TIMER structure:
-        .PRE  – Preset value (milliseconds)
-        .ACC  – Accumulator (elapsed ms)
-        .EN   – Enable bit
-        .TT   – Timer Timing bit
-        .DN   – Done bit  (ACC >= PRE)
-    """
-    return [
-        (f"{name}.PRE", "DINT", preset),
-        (f"{name}.ACC", "DINT", 0),
-        (f"{name}.EN",  "BOOL", 0),
-        (f"{name}.TT",  "BOOL", 0),
-        (f"{name}.DN",  "BOOL", 0),
-    ]
-
-def expand_string(name: str, preset: str) -> List[Tuple[str, str, Any]]:
-    """
-    Expand a virtual STRING tag into its individual sub-tags.
-
-    Sub-tags mirror the Allen-Bradley / Studio 5000 STRING structure:
-        .LEN  – Current length of the string content (DINT)
-        .DATA – Fixed 82-element string holding the character bytes
-    """
-    return [
-        (f"{name}.LEN",  "DINT",     len(preset)),
-        (f"{name}.DATA", "SSTRING[82]", preset),
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Composite-type registry
-# ---------------------------------------------------------------------------
-
-_EXPANDERS = {
-    "COUNTER": expand_counter,
-    "TIMER":   expand_timer,
-    "STRING":  expand_string,
-}
-
-
-# ---------------------------------------------------------------------------
-# Public helper
-# ---------------------------------------------------------------------------
-
-def build_tag_specs(
-    raw: Iterable[Tuple[str, str, Any]],
-) -> List[Tuple[str, str, Any]]:
-    """
-    Expand composite type specs (COUNTER, TIMER) into their primitive tags.
-
-    All other entries are passed through unchanged.
-
-    Args:
-        raw: Iterable of (name, type_spec, default) tuples. When type_spec is
-             "COUNTER" or "TIMER", the default value is used as the preset.
-
-    Returns:
-        A flat list of (name, type_spec, default) tuples containing only
-        primitive types.
-    """
-    result: List[Tuple[str, str, Any]] = []
-    for name, type_spec, default in raw:
-        expander = _EXPANDERS.get(type_spec.upper())
-        if expander is not None:
-            result.extend(expander(name, default))
-        else:
-            result.append((name, type_spec, default))
-    return result
-
-
-def build_tag_specs_argv(
-    tag_specs: Iterable[Tuple[str, str, Any]],
-    base_args: Sequence[str] | None = None,
-) -> List[str]:
-    """
-    Build an argv-like list from tag specs.
-
-    Composite types (COUNTER, TIMER) are automatically expanded before
-    the argv is assembled.
-
-    Args:
-        tag_specs:
-            Iterable of (name, type_spec, default) tuples.
-        base_args:
-            Optional sequence of base arguments to prepend
-            (e.g., ["--print"]).
-
-    Returns:
-        A list of arguments such as:
-            ["--print", "I_TEXT=BOOL", "O_TEXT=BOOL", "O_INCR=DINT"]
-    """
-    if base_args is None:
-        base_args = []
-
-    expanded = build_tag_specs(tag_specs)
-    argv: List[str] = list(base_args)
-    argv.extend(f"{name}={type_spec}" for (name, type_spec, _) in expanded)
-    return argv
-
-
-# Default tag specifications.
-# You can still replace TAG_SPECS in tests, or bypass this constant entirely
-# by calling build_tag_specs_argv with your own tag_specs.
-TAG_SPECS = build_tag_specs([
-    # (tag_name,    type_spec,  default)
-
-    ("I_TEXT", "STRING", ""),
-    ("O_TEXT", "STRING", ""),
-
-    ("O_INCR", "INT", 0),
-    ("O_Updates.LAZY", "INT",   0),      # lazy counter (separate)
-
-    # Types of numbers
-    ("O_8Bit",         "SINT",  0),
-    ("O_16Bit",        "INT",   0),
-    ("O_32Bit",        "DINT",  0),
-    ("O_32Bit_Float",  "REAL",  0.0),
-
-    # Composite types – expand automatically
-    ("O_Updates",       "COUNTER",       1000),   # preset = 1000
-    ("O_Timer",         "TIMER",         5000),   # preset = 5000 ms
-    ("O_String",          "STRING",        "HELLO"),
-])
-
-# Convenience module-level argv built from TAG_SPECS.
-# For tests, use build_tag_specs_argv directly with test data.
-TAG_ARGV: List[str] = build_tag_specs_argv(TAG_SPECS, base_args=["--print"])
+tag_registry = TagRegistry()

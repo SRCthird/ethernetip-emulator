@@ -3,7 +3,8 @@
 
 # src/server/actions/string.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List, Tuple
+from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
     from src.server.actions.actions import AttributeActions
@@ -11,6 +12,14 @@ if TYPE_CHECKING:
 class String:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
+
+    @staticmethod
+    @tag_registry.expander("STRING")
+    def _(name: str, preset: str) -> List[Tuple[str, str, Any]]:
+        return [
+            (f"{name}.LEN",  "DINT",        len(preset)),
+            (f"{name}.DATA", "SSTRING[82]", preset),
+        ]
 
     def get_val(self, name_prefix: str, key: Any):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
@@ -47,4 +56,3 @@ class String:
         except Exception:
             if hasattr(len_tag, "value"):
                 len_tag.value =len(new_value) 
-

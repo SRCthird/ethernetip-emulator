@@ -3,8 +3,10 @@
 
 # src/server/actions/timer.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 import time
+
+from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
     from src.server.actions.actions import AttributeActions
@@ -12,6 +14,17 @@ if TYPE_CHECKING:
 class Timer:
     def __init__(self, parent):
         self.parent = parent
+
+    @staticmethod
+    @tag_registry.expander("TIMER")
+    def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
+        return [
+            (f"{name}.PRE", "DINT", preset),
+            (f"{name}.ACC", "DINT", 0),
+            (f"{name}.EN",  "BOOL", 0),
+            (f"{name}.TT",  "BOOL", 0),
+            (f"{name}.DN",  "BOOL", 0),
+        ]
 
     def start(
         self,
