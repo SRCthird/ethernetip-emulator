@@ -4,10 +4,12 @@
 # src/server/actions/increment.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from src.server.device import actions
 
 if TYPE_CHECKING:
-    from src.server.actions.actions import AttributeActions
+    from src.server.actions import AttributeActions
 
+@actions.datatype
 class Increment:
     def __init__(self, parent):
         self.parent = parent

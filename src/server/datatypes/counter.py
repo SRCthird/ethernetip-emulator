@@ -4,11 +4,13 @@
 # src/server/actions/counter.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from src.server.device import actions
 from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
-    from src.server.actions.actions import AttributeActions
+    from src.server.actions import AttributeActions
 
+@actions.datatype
 class Counter:
     def __init__(self, parent: AttributeActions):
         self.parent = parent

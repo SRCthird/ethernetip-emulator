@@ -5,12 +5,14 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 import time
+from src.server.device import actions
 
 from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
-    from src.server.actions.actions import AttributeActions
+    from src.server.actions import AttributeActions
 
+@actions.datatype
 class Timer:
     def __init__(self, parent):
         self.parent = parent

@@ -7,10 +7,7 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable, overload
-
-from src.server.actions import Counter, Increment, Timer, String
-
+from typing import Any, Callable, overload, Type
 
 class AttributeActions:
     DINT_MAX: int = 2_147_483_647
@@ -32,22 +29,56 @@ class AttributeActions:
             str, list[tuple[Callable[[Any, Any, Any], None], Any | None]]
         ] = {}
         self._listener_lock = threading.Lock()
+        self._pending: list[Callable[[], None]] = []
+        self._entered: bool = False
+        self._datatypes: dict[str, Any] = {}
 
         if thread_factory is None:
             def default_thread_factory(**kwargs: Any) -> threading.Thread:
                 return threading.Thread(**kwargs)
             thread_factory = default_thread_factory
-
         self._thread_factory = thread_factory
 
-        self.increment = Increment(self)
-        self.counter = Counter(self)
-        self.timer = Timer(self)
-        self.string = String(self)
+    def register_datatype(
+        self,
+        name: str,
+        cls: Type[Any],
+    ) -> "AttributeActions":
+        instance = cls(self)
+        self._datatypes[name] = instance
+        return self
+
+    def datatype(
+        self,
+        name_or_cls: str | Type[Any],
+    ) -> "AttributeActions | Callable[[Type[Any]], Type[Any]]":
+        if isinstance(name_or_cls, str):
+            name = name_or_cls
+            def decorator(cls: Type[Any]) -> Type[Any]:
+                self.register_datatype(name, cls)
+                return cls
+            return decorator
+        else:
+            cls = name_or_cls
+            self.register_datatype(cls.__name__.lower(), cls)
+            return cls
+
+    def __getattr__(self, name: str) -> Any:
+        datatypes = self.__dict__.get("_datatypes", {})
+        if name in datatypes:
+            return datatypes[name]
+        raise AttributeError(
+            f"{type(self).__name__!r} has no attribute {name!r}. "
+            f"Registered datatypes: {list(datatypes)}"
+        )
 
     def __enter__(self) -> "AttributeActions":
         if self._stop.is_set():
             self._stop.clear()
+        self._entered = True
+        for thunk in self._pending:
+            thunk()
+        self._pending.clear()
         return self
 
     def __exit__(
@@ -61,6 +92,7 @@ class AttributeActions:
             t.join()
         self._stop.clear()
         self._threads.clear()
+        self._entered = False
 
     def bind(self, attr_class: type) -> "AttributeActions":
         self._attr_class_ref = weakref.ref(attr_class)
@@ -129,42 +161,6 @@ class AttributeActions:
         *,
         key: Any | None = None,
     ) -> "AttributeActions | Callable":
-        """
-        Register a listener for writes to *tag_name*.
-
-        Can be used in two ways:
-
-        **Imperative** (original style – backward-compatible)::
-
-            actions.on_change("I_TEXT.DATA", my_callback)
-            actions.on_change("I_TEXT.DATA", my_callback, key=0)
-
-        **Decorator** (new style – function name is used as the callback)::
-
-            @actions.on_change("I_TEXT.DATA")
-            def I_TEXT(attr, key, value):
-                ...
-
-            # With an optional key filter:
-            @actions.on_change("I_TEXT.DATA", key=0)
-            def I_TEXT(attr, key, value):
-                ...
-
-        In decorator form the decorated function is returned unchanged so
-        it can still be called or tested directly.
-
-        Args:
-            tag_name: Name of the tag to watch.
-            callback: Callable to invoke on change, *or* ``None`` when used
-                      as a decorator factory.
-            key:      Optional key filter; only fire when ``key`` matches the
-                      write key.
-
-        Returns:
-            - The ``AttributeActions`` instance when *callback* is provided
-              (imperative style).
-            - A decorator when *callback* is ``None`` (decorator style).
-        """
         if callback is not None:
             with self._listener_lock:
                 self._listeners.setdefault(tag_name, []).append((callback, key))
@@ -209,14 +205,21 @@ class AttributeActions:
     def is_running(self) -> bool:
         return any(t.is_alive() for t in self._threads)
 
-    def on_set(self, attr: Any, key: Any, value: Any) -> None:
+    def on_set(self, attr, key, value):
         tag_name = getattr(attr, "name", None)
-
         if tag_name is None:
             return
-
-        if tag_name.endswith(".DATA"):
-            name_prefix = tag_name[: -len(".DATA")]
-            self.string._len_helper(name_prefix, key, value)
-
+        for dt in self._datatypes.values():
+            hook = getattr(dt, "on_set_hook", None)
+            if hook is not None:
+                hook(tag_name, attr, key, value)
         self._fire_listeners(tag_name, attr, key, value)
+
+    # def on_set(self, attr: Any, key: Any, value: Any) -> None:
+    #     tag_name = getattr(attr, "name", None)
+    #     if tag_name is None:
+    #         return
+    #     if tag_name.endswith(".DATA"):
+    #         name_prefix = tag_name[: -len(".DATA")]
+    #         self.string._len_helper(name_prefix, key, value)
+    #     self._fire_listeners(tag_name, attr, key, value)

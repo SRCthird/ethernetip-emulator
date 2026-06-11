@@ -1,14 +1,16 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/string.py
+# src/server/datatype/string.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List, Tuple
 from src.server.tag_specs import tag_registry
+from src.server.device import actions
 
 if TYPE_CHECKING:
-    from src.server.actions.actions import AttributeActions
+    from src.server.actions import AttributeActions
 
+@actions.datatype
 class String:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
@@ -21,12 +23,16 @@ class String:
             (f"{name}.DATA", "SSTRING[82]", preset),
         ]
 
+    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        if tag_name.endswith(".DATA"):
+            name_prefix = tag_name[: -len(".DATA")]
+            self._len_helper(name_prefix, key, value)
+
     def get_val(self, name_prefix: str, key: Any):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
             return None
         return data_tag[key]
-        
     
     def set_val(self, name_prefix: str, key: Any, value: str):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
