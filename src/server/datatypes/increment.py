@@ -14,6 +14,11 @@ class Increment:
     def __init__(self, parent):
         self.parent = parent
 
+    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        if tag_name.endswith(".EN"):
+            name_prefix = tag_name[: -len(".EN")]
+            self.start(name_prefix, key=key)
+
     def start(
         self,
         tag_name: str,
