@@ -28,6 +28,9 @@ class Timer:
             (f"{name}.DN",  "BOOL", 0),
         ]
 
+    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        pass
+
     def start(
         self,
         tag_prefix: str,
