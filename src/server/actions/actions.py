@@ -7,9 +7,10 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable
+from typing import Any, Callable, overload
 
 from src.server.actions import Counter, Increment, Timer, String
+
 
 class AttributeActions:
     DINT_MAX: int = 2_147_483_647
@@ -103,16 +104,80 @@ class AttributeActions:
         self._threads.append(t)
         return self
 
+    @overload
     def on_change(
         self,
         tag_name: str,
         callback: Callable[[Any, Any, Any], None],
         *,
+        key: Any | None = ...,
+    ) -> "AttributeActions": ...
+
+    @overload
+    def on_change(
+        self,
+        tag_name: str,
+        callback: None = ...,
+        *,
+        key: Any | None = ...,
+    ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
+
+    def on_change(
+        self,
+        tag_name: str,
+        callback: Callable[[Any, Any, Any], None] | None = None,
+        *,
         key: Any | None = None,
-    ) -> "AttributeActions":
-        with self._listener_lock:
-            self._listeners.setdefault(tag_name, []).append((callback, key))
-        return self
+    ) -> "AttributeActions | Callable":
+        """
+        Register a listener for writes to *tag_name*.
+
+        Can be used in two ways:
+
+        **Imperative** (original style – backward-compatible)::
+
+            actions.on_change("I_TEXT.DATA", my_callback)
+            actions.on_change("I_TEXT.DATA", my_callback, key=0)
+
+        **Decorator** (new style – function name is used as the callback)::
+
+            @actions.on_change("I_TEXT.DATA")
+            def I_TEXT(attr, key, value):
+                ...
+
+            # With an optional key filter:
+            @actions.on_change("I_TEXT.DATA", key=0)
+            def I_TEXT(attr, key, value):
+                ...
+
+        In decorator form the decorated function is returned unchanged so
+        it can still be called or tested directly.
+
+        Args:
+            tag_name: Name of the tag to watch.
+            callback: Callable to invoke on change, *or* ``None`` when used
+                      as a decorator factory.
+            key:      Optional key filter; only fire when ``key`` matches the
+                      write key.
+
+        Returns:
+            - The ``AttributeActions`` instance when *callback* is provided
+              (imperative style).
+            - A decorator when *callback* is ``None`` (decorator style).
+        """
+        if callback is not None:
+            with self._listener_lock:
+                self._listeners.setdefault(tag_name, []).append((callback, key))
+            return self
+
+        def decorator(
+            fn: Callable[[Any, Any, Any], None],
+        ) -> Callable[[Any, Any, Any], None]:
+            with self._listener_lock:
+                self._listeners.setdefault(tag_name, []).append((fn, key))
+            return fn
+
+        return decorator
 
     def remove_listeners(self, tag_name: str) -> "AttributeActions":
         with self._listener_lock:

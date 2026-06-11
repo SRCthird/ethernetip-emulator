@@ -73,3 +73,6 @@ class AttributeDevice(device.Attribute):
     @classmethod
     def reset_defaults(cls) -> None:
         cls._defaults = None
+
+# Singleton
+actions = AttributeDevice._actions
