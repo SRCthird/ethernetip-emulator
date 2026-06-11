@@ -45,13 +45,13 @@ def handle_timer_done(attr, key, value) -> None:
         timer_enabled[key] = 0
 
 
-@actions.on_change("O_Updates.RES")
-def handle_reset_timer(attr, key, value) -> None:
-    """Reset O_Updates COUNTER when its RES bit is written."""
-    registry = getattr(type(attr), "registry", {})
-    counter_reset = registry.get("O_Updates.RES")
-    if counter_reset is not None and counter_reset[key][0]:
-        actions.counter.reset("O_Updates")
+# @actions.on_change("O_Updates.RES")
+# def handle_reset_timer(attr, key, value) -> None:
+#     """Reset O_Updates COUNTER when its RES bit is written."""
+#     registry = getattr(type(attr), "registry", {})
+#     counter_reset = registry.get("O_Updates.RES")
+#     if counter_reset is not None and counter_reset[key][0]:
+#         actions.counter.reset("O_Updates")
 
 actions.increment.start(tag_name="O_INCR", wrap=32766)
-actions.timer.start("O_Timer", enable="O_Timer.EN")
+# actions.timer.start("O_Timer", enable="O_Timer.EN")
