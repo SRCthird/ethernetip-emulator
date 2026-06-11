@@ -29,6 +29,11 @@ class Counter:
             (f"{name}.RES", "BOOL", 0),
         ]
 
+    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        if tag_name.endswith(".RES"):
+            name_prefix = tag_name[: -len(".RES")]
+            self.reset(name_prefix, key=key)
+
     def start(
         self,
         tag_prefix: str,
