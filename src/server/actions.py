@@ -205,21 +205,19 @@ class AttributeActions:
     def is_running(self) -> bool:
         return any(t.is_alive() for t in self._threads)
 
-    def on_set(self, attr, key, value):
+    def on_set(self, attr: Any, key: Any, value: Any) -> None:
+        from src.server.tag_specs import tag_registry
+
         tag_name = getattr(attr, "name", None)
         if tag_name is None:
             return
-        for dt in self._datatypes.values():
-            hook = getattr(dt, "on_set_hook", None)
-            if hook is not None:
-                hook(tag_name, attr, key, value)
-        self._fire_listeners(tag_name, attr, key, value)
 
-    # def on_set(self, attr: Any, key: Any, value: Any) -> None:
-    #     tag_name = getattr(attr, "name", None)
-    #     if tag_name is None:
-    #         return
-    #     if tag_name.endswith(".DATA"):
-    #         name_prefix = tag_name[: -len(".DATA")]
-    #         self.string._len_helper(name_prefix, key, value)
-    #     self._fire_listeners(tag_name, attr, key, value)
+        origin_type = tag_registry.build_type_map().get(tag_name)
+        if origin_type is not None:
+            dt = self._datatypes.get(origin_type.lower())
+            if dt is not None:
+                hook = getattr(dt, "on_set_hook", None)
+                if hook is not None:
+                    hook(tag_name, attr, key, value)
+
+        self._fire_listeners(tag_name, attr, key, value)
