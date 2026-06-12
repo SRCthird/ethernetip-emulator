@@ -32,8 +32,7 @@ def handle_i_text(attr, key, value) -> None:
         if hasattr(output_tag, "value"):
             setattr(output_tag, "value", value)
 
-
-@actions.on_change("O_Timer.DN")
+@actions.timer.is_done("O_Timer")
 def handle_timer_done(attr, key, value) -> None:
     """When the timer fires, pause 10 s then disable it."""
     if not value:
@@ -43,6 +42,5 @@ def handle_timer_done(attr, key, value) -> None:
     sleep(10)
     if timer_enabled is not None:
         timer_enabled[key] = 0
-
 
 actions.increment.start(tag_name="O_INCR", wrap=32766)
