@@ -53,6 +53,7 @@ class TagRegistry:
     def __init__(self) -> None:
         self._expanders: dict[str, Callable] = {}
         self._raw: List[Tuple[str, str, Any]] = []
+        self._built: List[Tuple[str, str, Any]] | None = None
         self._type_map: dict[str, str] | None = None
 
     def register(
@@ -60,7 +61,7 @@ class TagRegistry:
         fn: Callable[[], Iterable[Tuple[str, str, Any]]],
     ) -> Callable[[], Iterable[Tuple[str, str, Any]]]:
         self._raw.extend(fn())
-        self._type_map = None
+        self.invalidate()
         return fn
 
     def expander(
@@ -68,38 +69,11 @@ class TagRegistry:
     ) -> Callable[[Callable], Callable]:
         def decorator(fn: Callable) -> Callable:
             self._expanders[type_spec.upper()] = fn
+            self.invalidate()
             return fn
         return decorator
 
     def _expand_one(
-        self,
-        name: str,
-        type_spec: str,
-        default: Any,
-        seen: Optional[Set[str]] = None,
-    ) -> List[Tuple[str, str, Any]]:
-        key = type_spec.upper()
-        expander = self._expanders.get(key)
-
-        if expander is None:
-            return [(name, type_spec, default)]
-
-        if seen is None:
-            seen = set()
-
-        if key in seen:
-            return [(name, type_spec, default)]
-
-        seen = seen | {key}
-
-        result: List[Tuple[str, str, Any]] = []
-        for child_name, child_type, child_default in expander(name, default):
-            result.extend(
-                self._expand_one(child_name, child_type, child_default, seen)
-            )
-        return result
-
-    def _expand_one_typed(
         self,
         name: str,
         type_spec: str,
@@ -122,31 +96,41 @@ class TagRegistry:
         result: List[Tuple[str, str, Any, str]] = []
         for child_name, child_type, child_default in expander(name, default):
             result.extend(
-                self._expand_one_typed(child_name, child_type, child_default, origin, seen)
+                self._expand_one(child_name, child_type, child_default, origin, seen)
             )
         return result
 
-    def build_type_map(self) -> dict[str, str]:
-        if self._type_map is not None:
-            return self._type_map
+    def _ensure_built(self) -> None:
+        if self._built is not None:
+            return
 
+        built: List[Tuple[str, str, Any]] = []
         type_map: dict[str, str] = {}
+
         for name, type_spec, default in self._raw:
             origin = type_spec.upper()
-            for prim_name, _, _, src in self._expand_one_typed(name, type_spec, default, origin):
+            for prim_name, prim_type, prim_default, src in self._expand_one(
+                name, type_spec, default, origin
+            ):
+                built.append((prim_name, prim_type, prim_default))
                 type_map[prim_name] = src
 
+        self._built = built
         self._type_map = type_map
+
+    def build_type_map(self) -> dict[str, str]:
+        self._ensure_built()
         return self._type_map
 
-    def invalidate_type_map(self) -> None:
+    def invalidate(self) -> None:
+        self._built = None
         self._type_map = None
 
+    invalidate_type_map = invalidate
+
     def build(self) -> List[Tuple[str, str, Any]]:
-        result: List[Tuple[str, str, Any]] = []
-        for name, type_spec, default in self._raw:
-            result.extend(self._expand_one(name, type_spec, default))
-        return result
+        self._ensure_built()
+        return self._built
 
     def build_argv(
         self,
@@ -164,7 +148,6 @@ class TagRegistry:
     @property
     def argv(self) -> List[str]:
         return self.build_argv(base_args=["--print"])
-
 
 # ---------------------------------------------------------------------------
 # Module-level singleton
