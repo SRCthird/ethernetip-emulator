@@ -6,20 +6,45 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 import time
 from src.server.device import actions
-
 from src.server.tag_specs import tag_registry
 
 if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
+class TimerIsDoingSomething:
+    def __init__(self, dn_value: bool, register_fn: Callable) -> None:
+        self._dn_value = dn_value
+        self._register_fn = register_fn
+
+    def __bool__(self) -> bool:
+        return self._dn_value
+
+    def __call__(
+        self, fn: Callable[[Any, Any, Any], None]
+    ) -> Callable[[Any, Any, Any], None]:
+        self._register_fn(fn)
+        return fn
+
+class TimerIsTiming(TimerIsDoingSomething):
+    pass
+
+class TimerIsDone(TimerIsDoingSomething):
+    pass
+
+class TimerIsEnabled(TimerIsDoingSomething):
+    pass
+
+
 @actions.datatype
 class Timer:
-    def __init__(self, parent):
+    def __init__(self, parent: "AttributeActions"):
         self.parent = parent
 
     @staticmethod
     @tag_registry.expander("TIMER")
     def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
+        print("Building timer:", name)
+        actions.timer.start(name, enable=f"{name}.EN")
         return [
             (f"{name}.PRE", "DINT", preset),
             (f"{name}.ACC", "DINT", 0),
@@ -31,6 +56,71 @@ class Timer:
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         pass
 
+    def get_preset(self, tag_prefix: str, key: Any):
+        data_tag = self.parent._lookup(f"{tag_prefix}.PRE")
+        if data_tag is None:
+            return None
+        return data_tag[key]
+
+    def set_preset(self, tag_prefix: str, key: Any, value: int):
+        attr = self.parent._lookup(f"{tag_prefix}.PRE")
+        if attr:
+            self.parent._write_attr(attr, key, value)
+
+    def get_accumulator(self, tag_prefix: str, key: Any):
+        data_tag = self.parent._lookup(f"{tag_prefix}.ACC")
+        if data_tag is None:
+            return None
+        return data_tag[key]
+
+    def is_enabled(
+        self,
+        tag_prefix: str,
+        *,
+        key: Any = 0,
+    ) -> TimerIsEnabled:
+        tag = f"{tag_prefix}.EN"
+
+        attr = self.parent._lookup(tag)
+        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+
+        def register_fn(fn: Callable) -> None:
+            self.parent.on_change(tag, fn)
+
+        return TimerIsEnabled(value, register_fn)
+
+    def is_done(
+        self,
+        tag_prefix: str,
+        *,
+        key: Any = 0,
+    ) -> TimerIsDone:
+        tag = f"{tag_prefix}.DN"
+
+        attr = self.parent._lookup(tag)
+        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+
+        def register_fn(fn: Callable) -> None:
+            self.parent.on_change(tag, fn)
+
+        return TimerIsDone(value, register_fn)
+
+    def is_timing(
+        self,
+        tag_prefix: str,
+        *,
+        key: Any = 0,
+    ) -> TimerIsTiming:
+        tag = f"{tag_prefix}.TT"
+
+        attr = self.parent._lookup(tag)
+        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+
+        def register_fn(fn: Callable) -> None:
+            self.parent.on_change(tag, fn)
+
+        return TimerIsTiming(value, register_fn)
+
     def start(
         self,
         tag_prefix: str,
@@ -41,16 +131,24 @@ class Timer:
         initial_delay: float = 1.0,
         enable: str | Callable[[], bool] | None = None,
     ) -> "AttributeActions":
-        def worker() -> None:
-            self.run_worker(
-                tag_prefix=tag_prefix,
-                period=period,
-                key=key,
-                preset_ms=preset_ms,
-                initial_delay=initial_delay,
-                enable=enable,
-            )
-        return self.parent._start_worker(f"{tag_prefix}-timer", worker)
+        def _launch() -> None:
+            def worker() -> None:
+                self.run_worker(
+                    tag_prefix=tag_prefix,
+                    period=period,
+                    key=key,
+                    preset_ms=preset_ms,
+                    initial_delay=initial_delay,
+                    enable=enable,
+                )
+            self.parent._start_worker(f"{tag_prefix}-timer", worker)
+
+        if self.parent._entered:
+            _launch()
+        else:
+            self.parent._pending.append(_launch)
+
+        return self.parent
 
     def run_worker(
         self,
@@ -157,4 +255,3 @@ class Timer:
             attr = self.parent._lookup(tag)
             if attr is not None:
                 self.parent._write_attr(attr, key, 0)
-
