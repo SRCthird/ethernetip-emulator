@@ -58,11 +58,23 @@ class TagRegistry:
 
     def register(
         self,
-        fn: Callable[[], Iterable[Tuple[str, str, Any]]],
-    ) -> Callable[[], Iterable[Tuple[str, str, Any]]]:
-        self._raw.extend(fn())
-        self.invalidate()
-        return fn
+        fn_or_prefix: Callable[[], Iterable[Tuple[str, str, Any]]] | str,
+    ) -> Any:
+        if isinstance(fn_or_prefix, str):
+            prefix = fn_or_prefix
+            def decorator(fn):
+                self._raw.extend(
+                    (f"{prefix}.{name}", type_spec, default)
+                    for name, type_spec, default in fn()
+                )
+                self.invalidate()
+                return fn
+            return decorator
+        else:
+            fn = fn_or_prefix
+            self._raw.extend(fn())
+            self.invalidate()
+            return fn
 
     def expander(
         self, type_spec: str
