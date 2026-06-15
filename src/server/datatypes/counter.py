@@ -10,6 +10,26 @@ from src.server.tag_specs import tag_registry
 if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
+class CounterIsDoingSomething:
+    def __init__(self, value: bool, register_fn: Callable) -> None:
+        self._value = value
+        self._register_fn = register_fn
+
+    def __bool__(self) -> bool:
+        return self._value
+
+    def __call__(
+        self, fn: Callable[[Any, Any, Any], None]
+    ) -> Callable[[Any, Any, Any], None]:
+        self._register_fn(fn)
+        return fn
+
+class CounterIsDone(CounterIsDoingSomething):
+    pass
+
+class CounterIsReset(CounterIsDoingSomething):
+    pass
+
 @actions.datatype
 class Counter:
     def __init__(self, parent: AttributeActions):
@@ -33,6 +53,39 @@ class Counter:
         if tag_name.endswith(".RES"):
             name_prefix = tag_name[: -len(".RES")]
             self.reset(name_prefix, key=key)
+
+    def is_done(
+        self,
+        tag_prefix: str,
+        *,
+        key: Any = 0,
+    ) -> CounterIsDone:
+        tag = f"{tag_prefix}.DN"
+
+        attr = self.parent._lookup(tag)
+        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+
+        def register_fn(fn: Callable) -> None:
+            self.parent.on_change(tag, fn)
+
+        return CounterIsDone(value, register_fn)
+
+
+    def is_reset(
+        self,
+        tag_prefix: str,
+        *,
+        key: Any = 0,
+    ) -> CounterIsReset:
+        tag = f"{tag_prefix}.RES"
+
+        attr = self.parent._lookup(tag)
+        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+
+        def register_fn(fn: Callable) -> None:
+            self.parent.on_change(tag, fn)
+
+        return CounterIsReset(value, register_fn)
 
     def start(
         self,
