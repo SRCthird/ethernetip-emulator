@@ -1,10 +1,9 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# __main__.py
+# example/__main__.py
 from cpppo.server.enip.main import main as enip_main
 
-import scope
 from src.server.device import AttributeDevice
 from src.server.tag_specs import tag_registry
 

@@ -2,8 +2,6 @@
 # All rights reserved
 
 # scope/__init__.py
-import scope.actions
-import scope.datatypes
-import scope.tags
+from . import actions, datatypes, tags
 
 __all__ = ["actions", "datatypes", "tags"]

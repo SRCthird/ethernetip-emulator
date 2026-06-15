@@ -24,6 +24,7 @@ def handle_i_text(attr, key, value) -> None:
     try:
         actions.counter.increment("O_Updates")
         actions.increment.increment("O_Updates.LAZY")
+        # if actions.counter.is_done("O_Updates"):
         if output_count_done is not None and output_count_done[key][0]:
             actions.string.set_val("O_TEXT", key, ["Count Completed"])
         else:
