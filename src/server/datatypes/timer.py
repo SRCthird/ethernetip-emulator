@@ -43,7 +43,6 @@ class Timer:
     @staticmethod
     @tag_registry.expander("TIMER")
     def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
-        print("Building timer:", name)
         actions.timer.start(name, enable=f"{name}.EN")
         return [
             (f"{name}.PRE", "DINT", preset),
