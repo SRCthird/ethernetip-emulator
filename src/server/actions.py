@@ -9,6 +9,142 @@ import time
 import weakref
 from typing import Any, Callable, overload, Type
 
+
+# ---------------------------------------------------------------------------
+# Built-in type validators
+# ---------------------------------------------------------------------------
+
+def _v_string(v: Any) -> str:
+    if not isinstance(v, str):
+        raise TypeError(f"SSTRING default must be str, got {type(v).__name__!r}: {v!r}")
+    return v
+
+def _v_sint(v: Any) -> int:
+    n = int(v)
+    if not (-128 <= n <= 127):
+        raise ValueError(f"SINT default {n} is outside [-128, 127]")
+    return n
+
+def _v_int(v: Any) -> int:
+    n = int(v)
+    if not (-32_768 <= n <= 32_767):
+        raise ValueError(f"INT default {n} is outside [-32768, 32767]")
+    return n
+
+def _v_dint(v: Any) -> int:
+    n = int(v)
+    if not (-2_147_483_648 <= n <= 2_147_483_647):
+        raise ValueError(f"DINT default {n} is outside [-2147483648, 2147483647]")
+    return n
+
+def _v_real(v: Any) -> float:
+    try:
+        return float(v)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            f"REAL default must be numeric, got {type(v).__name__!r}: {v!r}"
+        ) from exc
+
+def _v_bool(v: Any) -> float:
+    try:
+        return bool(v)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            f"BOOL default must be boolean, got {type(v).__name__!r}: {v!r}"
+        ) from exc
+
+
+_TYPE_VALIDATORS: dict[str, Callable[[Any], Any] | None] = {
+    "SSTRING": _v_string,
+    "SINT":    _v_sint,
+    "INT":     _v_int,
+    "DINT":    _v_dint,
+    "REAL":    _v_real,
+    "BOOL":    _v_bool,
+}
+
+
+# ---------------------------------------------------------------------------
+# TypeSpec
+# ---------------------------------------------------------------------------
+
+class TypeSpec:
+    """
+    A validated type descriptor returned by ``actions.type.<TYPE>(default)``.
+
+    Validates *default* against the registered validator for *type_name* at
+    construction time.  Supports two-element unpacking::
+
+        type_name, default = TypeSpec("INT", 0)
+    """
+
+    __slots__ = ("type_name", "default")
+
+    def __init__(self, type_name: str, default: Any) -> None:
+        key = type_name.upper()
+        validator = _TYPE_VALIDATORS.get(key)
+        self.type_name: str = key
+        self.default: Any = validator(default) if validator is not None else default
+
+    def __iter__(self):
+        yield self.type_name
+        yield self.default
+
+    def __repr__(self) -> str:
+        return f"TypeSpec({self.type_name!r}, {self.default!r})"
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, TypeSpec):
+            return self.type_name == other.type_name and self.default == other.default
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.type_name, self.default))
+
+
+# ---------------------------------------------------------------------------
+# TypeNamespace
+# ---------------------------------------------------------------------------
+
+class TypeNamespace:
+    """
+    Exposes every registered PLC type as a callable factory::
+
+        actions.type.INT(0)      # -> TypeSpec('INT', 0)
+        actions.type.SSTRING("") # -> TypeSpec('SSTRING', '')
+
+    Holds a live reference to ``_TYPE_VALIDATORS`` so types registered via
+    :meth:`register_type` (or automatically through
+    ``AttributeActions.register_datatype``) are immediately available.
+    """
+
+    def __init__(self, validators: dict[str, Callable[[Any], Any] | None]) -> None:
+        # Live reference — mutations via register_type() are reflected instantly
+        self._types = validators
+
+    def register_type(
+        self,
+        name: str,
+        validator: Callable[[Any], Any] | None = None,
+    ) -> None:
+        self._types[name.upper()] = validator
+
+    def __getattr__(self, name: str) -> Callable[[Any], TypeSpec]:
+        key = name.upper()
+        types = object.__getattribute__(self, "_types")
+        if key not in types:
+            raise AttributeError(
+                f"Unknown PLC type {name!r}. Registered types: {sorted(types)}"
+            )
+        def factory(default: Any) -> TypeSpec:
+            return TypeSpec(key, default)
+        factory.__name__ = key
+        factory.__qualname__ = f"TypeNamespace.{key}"
+        return factory
+
+    def __repr__(self) -> str:
+        return f"TypeNamespace(types={sorted(self._types)})"
+
 class AttributeActions:
     DINT_MAX: int = 2_147_483_647
     DINT_MIN: int = -2_147_483_648
@@ -31,21 +167,21 @@ class AttributeActions:
         self._listener_lock = threading.Lock()
         self._pending: list[Callable[[], None]] = []
         self._entered: bool = False
-        self._datatypes: dict[str, Any] = {}
+        self._datatypes: dict[str, Any] = {
+            "type": TypeNamespace(_TYPE_VALIDATORS),
+        }
 
         if thread_factory is None:
-            def default_thread_factory(**kwargs: Any) -> threading.Thread:
-                return threading.Thread(**kwargs)
-            thread_factory = default_thread_factory
+            thread_factory = lambda **kw: threading.Thread(**kw)
         self._thread_factory = thread_factory
 
-    def register_datatype(
-        self,
-        name: str,
-        cls: Type[Any],
-    ) -> "AttributeActions":
-        instance = cls(self)
-        self._datatypes[name] = instance
+    # ------------------------------------------------------------------
+    # Datatype registration
+    # ------------------------------------------------------------------
+
+    def register_datatype(self, name: str, cls: Type[Any]) -> "AttributeActions":
+        self._datatypes[name] = cls(self)
+        self._datatypes["type"].register_type(name, getattr(cls, "type_validator", None))
         return self
 
     def datatype(
@@ -58,10 +194,9 @@ class AttributeActions:
                 self.register_datatype(name, cls)
                 return cls
             return decorator
-        else:
-            cls = name_or_cls
-            self.register_datatype(cls.__name__.lower(), cls)
-            return cls
+        cls = name_or_cls
+        self.register_datatype(cls.__name__.lower(), cls)
+        return cls
 
     def __getattr__(self, name: str) -> Any:
         datatypes = self.__dict__.get("_datatypes", {})
@@ -71,6 +206,10 @@ class AttributeActions:
             f"{type(self).__name__!r} has no attribute {name!r}. "
             f"Registered datatypes: {list(datatypes)}"
         )
+
+    # ------------------------------------------------------------------
+    # Context-manager lifecycle
+    # ------------------------------------------------------------------
 
     def __enter__(self) -> "AttributeActions":
         if self._stop.is_set():
@@ -93,6 +232,10 @@ class AttributeActions:
         self._stop.clear()
         self._threads.clear()
         self._entered = False
+
+    # ------------------------------------------------------------------
+    # Attribute helpers
+    # ------------------------------------------------------------------
 
     def bind(self, attr_class: type) -> "AttributeActions":
         self._attr_class_ref = weakref.ref(attr_class)
@@ -136,22 +279,18 @@ class AttributeActions:
         self._threads.append(t)
         return self
 
+    # ------------------------------------------------------------------
+    # Change listeners
+    # ------------------------------------------------------------------
+
     @overload
     def on_change(
-        self,
-        tag_name: str,
-        callback: Callable[[Any, Any, Any], None],
-        *,
-        key: Any | None = ...,
+        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: Any | None = ...
     ) -> "AttributeActions": ...
 
     @overload
     def on_change(
-        self,
-        tag_name: str,
-        callback: None = ...,
-        *,
-        key: Any | None = ...,
+        self, tag_name: str, callback: None = ..., *, key: Any | None = ...
     ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
 
     def on_change(
@@ -161,16 +300,16 @@ class AttributeActions:
         *,
         key: Any | None = None,
     ) -> "AttributeActions | Callable":
-        if callback is not None:
-            with self._listener_lock:
-                self._listeners.setdefault(tag_name, []).append((callback, key))
-            return self
-
-        def decorator(
-            fn: Callable[[Any, Any, Any], None],
-        ) -> Callable[[Any, Any, Any], None]:
+        def _register(fn: Callable) -> None:
             with self._listener_lock:
                 self._listeners.setdefault(tag_name, []).append((fn, key))
+
+        if callback is not None:
+            _register(callback)
+            return self
+
+        def decorator(fn: Callable[[Any, Any, Any], None]) -> Callable[[Any, Any, Any], None]:
+            _register(fn)
             return fn
 
         return decorator
@@ -183,16 +322,17 @@ class AttributeActions:
     def _fire_listeners(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         with self._listener_lock:
             entries = list(self._listeners.get(tag_name, []))
-
         for callback, key_filter in entries:
             if key_filter is not None and key_filter != key:
                 continue
             try:
                 callback(attr, key, value)
             except Exception as exc:
-                self._logger(
-                    f"AttributeActions: listener error for {tag_name}: {exc}"
-                )
+                self._logger(f"AttributeActions: listener error for {tag_name}: {exc}")
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     def stop(self) -> None:
         self._stop.set()
@@ -204,6 +344,10 @@ class AttributeActions:
 
     def is_running(self) -> bool:
         return any(t.is_alive() for t in self._threads)
+
+    # ------------------------------------------------------------------
+    # Tag-set hook
+    # ------------------------------------------------------------------
 
     def on_set(self, attr: Any, key: Any, value: Any) -> None:
         from src.server.tag_specs import tag_registry
@@ -221,3 +365,9 @@ class AttributeActions:
                     hook(tag_name, attr, key, value)
 
         self._fire_listeners(tag_name, attr, key, value)
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+actions = AttributeActions()

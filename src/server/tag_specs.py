@@ -2,52 +2,43 @@
 # All rights reserved
 
 # src/server/tag_specs.py
+from __future__ import annotations
+
 from typing import Any, Callable, Iterable, List, Optional, Sequence, Set, Tuple
 
 
 class TagRegistry:
     """
-    A tag_registry that collects raw tag specs via a decorator and expands
+    A registry that collects raw tag specs via a decorator and expands
     composite types (COUNTER, TIMER, STRING) into their primitive sub-tags.
 
-    Expansion is fully recursive: if an expander returns a tuple whose
-    type_spec is itself a registered composite, that tuple is expanded in
-    turn.  A ``seen`` set prevents infinite loops when a circular expander
-    chain is accidentally registered.
+    Each entry must be a two-element tuple ``(tag_name, spec)`` where *spec*
+    is any object exposing ``.type_name`` and ``.default`` — i.e. a
+    ``TypeSpec`` returned by ``actions.type.<TYPE>(default)``.
+
+    Expansion is fully recursive; a ``seen`` set prevents infinite loops.
 
     Usage
     -----
-    In any file that can import the shared tag_registry instance::
+    ::
 
         from tag_specs import tag_registry
 
         @tag_registry.register
         def _():
             return [
-                ("I_TEXT",    "STRING",  ""),
-                ("O_INCR",    "INT",      0),
-                ("O_Updates", "COUNTER", 1000),
+                ("I_TEXT",    actions.type.STRING("")),
+                ("O_INCR",    actions.type.INT(0)),
+                ("O_Updates", actions.type.COUNTER(1000)),
             ]
-
-    Calling ``tag_registry.build()`` (or accessing ``tag_registry.specs`` /
-    ``tag_registry.argv``) triggers expansion of all registered specs.
 
     Custom expanders
     ----------------
-    Register a new composite type at any point before ``build()`` is called::
+    ::
 
         @tag_registry.expander("MYFLOATARRAY")
         def expand_myfloatarray(name, preset):
             return [(f"{name}[{i}]", "REAL", preset) for i in range(4)]
-
-    Nested expanders work automatically::
-
-        @tag_registry.expander("CUSTOM_TYPE")
-        def _expand_custom(name, preset):
-            return [
-                (f"{name}",           "STRING", preset),  # will be recursively expanded
-                (f"{name}.SOMETHING", "DINT",   0),
-            ]
     """
 
     def __init__(self) -> None:
@@ -56,23 +47,47 @@ class TagRegistry:
         self._built: List[Tuple[str, str, Any]] | None = None
         self._type_map: dict[str, str] | None = None
 
+    @staticmethod
+    def _normalise(entry: tuple) -> Tuple[str, str, Any]:
+        """
+        Accept a two-element tuple ``(name, spec)`` where *spec* exposes
+        ``.type_name`` and ``.default`` (i.e. ``actions.TypeSpec``).
+        Returns a normalised ``(name, type_str, default)`` triple.
+        """
+        if len(entry) != 2:
+            raise ValueError(
+                f"Tag entry must be a 2-tuple (name, TypeSpec), got {len(entry)} elements: {entry!r}"
+            )
+        name, spec = entry
+        type_name = getattr(spec, "type_name", None)
+        if type_name is None:
+            raise TypeError(
+                f"Tag entry second element must be a TypeSpec (has .type_name); "
+                f"got {type(spec)!r}"
+            )
+        return name, type_name, spec.default
+
     def register(
         self,
-        fn_or_prefix: Callable[[], Iterable[Tuple[str, str, Any]]] | str,
+        fn_or_prefix: Callable[[], Iterable[tuple]] | str,
     ) -> Any:
         if isinstance(fn_or_prefix, str):
             prefix = fn_or_prefix
             def decorator(fn):
                 self._raw.extend(
                     (f"{prefix}.{name}", type_spec, default)
-                    for name, type_spec, default in fn()
+                    for name, type_spec, default in (
+                        self._normalise(entry) for entry in fn()
+                    )
                 )
                 self.invalidate()
                 return fn
             return decorator
         else:
             fn = fn_or_prefix
-            self._raw.extend(fn())
+            self._raw.extend(
+                self._normalise(entry) for entry in fn()
+            )
             self.invalidate()
             return fn
 
@@ -106,7 +121,8 @@ class TagRegistry:
 
         seen = seen | {key}
         result: List[Tuple[str, str, Any, str]] = []
-        for child_name, child_type, child_default in expander(name, default):
+        for raw_child in expander(name, default):
+            child_name, child_type, child_default = self._normalise(raw_child)
             result.extend(
                 self._expand_one(child_name, child_type, child_default, origin, seen)
             )
@@ -160,6 +176,7 @@ class TagRegistry:
     @property
     def argv(self) -> List[str]:
         return self.build_argv(base_args=["--print"])
+
 
 # ---------------------------------------------------------------------------
 # Module-level singleton
