@@ -5,26 +5,29 @@
 from typing import Any, List, Tuple
 
 from src.server.tag_specs import tag_registry
+from src.server.actions import actions
 
 @tag_registry.register
-def _tags() -> List[Tuple[str, str, Any]]:
+def _tags():
     return [
-        # (tag_name,          type_spec,  default)
-        ("I_TEXT",            "STRING",   ""),
-        ("O_TEXT",            "STRING",   ""),
+        # (tag_name,          type_spec(default))
+        ("I_TEXT",            actions.type.STRING("")),
+        ("O_TEXT",            actions.type.STRING("")),
 
-        ("O_INCR",            "INT",       0),
-        ("O_Updates.LAZY",    "INT",       0),   # lazy counter (separate)
+        ("O_INCR",            actions.type.INT(0)),
+        ("O_Updates.LAZY",    actions.type.INT(0)),   # lazy counter (separate)
 
         # Sized integer / float types
-        ("O_8Bit",            "SINT",      0),
-        ("O_16Bit",           "INT",       0),
-        ("O_32Bit",           "DINT",      0),
-        ("O_32Bit_Float",     "REAL",      0.0),
+        ("O_8Bit",            actions.type.SINT(0)),
+        ("O_16Bit",           actions.type.INT(0)),
+        ("O_32Bit",           actions.type.DINT(0)),
+        ("O_32Bit_Float",     actions.type.REAL(0.0)),
 
         # Built-in composite types
-        ("O_Updates",         "COUNTER",  1000),
-        ("O_Timer",           "TIMER",    5000),
-        ("O_String",          "STRING",   "HELLO"),
-    ]
+        ("O_Updates",         actions.type.COUNTER(1000)),
+        ("O_Timer",           actions.type.TIMER(5000)),
+        ("O_String",          actions.type.STRING("HELLO")),
 
+        # Custom composite type
+        ("O_Container",       actions.type.MFGCONTAINER(("1011", "LOT001", "CONT001"))),
+    ]
