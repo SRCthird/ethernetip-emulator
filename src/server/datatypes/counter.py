@@ -36,17 +36,23 @@ class Counter:
         self.parent = parent
 
     @staticmethod
+    def type_validator(v: Any) -> int:
+        if not isinstance(v, int):
+            raise TypeError(f"COUNTER default must be int, got {type(v).__name__!r}: {v!r}")
+        return v
+
+    @staticmethod
     @tag_registry.expander("COUNTER")
-    def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
+    def _(name: str, preset: int):
         return [
-            (f"{name}.PRE", "DINT", preset),
-            (f"{name}.ACC", "DINT", 0),
-            (f"{name}.CU",  "BOOL", 0),
-            (f"{name}.CD",  "BOOL", 0),
-            (f"{name}.DN",  "BOOL", 0),
-            (f"{name}.OV",  "BOOL", 0),
-            (f"{name}.UN",  "BOOL", 0),
-            (f"{name}.RES", "BOOL", 0),
+            (f"{name}.PRE", actions.type.DINT(preset)),
+            (f"{name}.ACC", actions.type.DINT(0)),
+            (f"{name}.CU",  actions.type.BOOL(False)),
+            (f"{name}.CD",  actions.type.BOOL(False)),
+            (f"{name}.DN",  actions.type.BOOL(False)),
+            (f"{name}.OV",  actions.type.BOOL(False)),
+            (f"{name}.UN",  actions.type.BOOL(False)),
+            (f"{name}.RES", actions.type.BOOL(False)),
         ]
 
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:

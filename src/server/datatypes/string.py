@@ -16,11 +16,17 @@ class String:
         self.parent = parent
 
     @staticmethod
+    def type_validator(v: Any) -> str:
+        if not isinstance(v, str):
+            raise TypeError(f"STRING default must be str, got {type(v).__name__!r}: {v!r}")
+        return v
+        
+    @staticmethod
     @tag_registry.expander("STRING")
-    def _(name: str, preset: str) -> List[Tuple[str, str, Any]]:
+    def _(name: str, preset: str):
         return [
-            (f"{name}.LEN",  "DINT",        len(preset)),
-            (f"{name}.DATA", "SSTRING[82]", preset),
+            (f"{name}.LEN", actions.type.DINT(len(preset))),
+            (f"{name}.DATA", actions.type.SSTRING(preset)),
         ]
 
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:

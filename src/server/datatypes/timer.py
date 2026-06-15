@@ -41,15 +41,21 @@ class Timer:
         self.parent = parent
 
     @staticmethod
+    def type_validator(v: Any) -> int:
+        if not isinstance(v, int):
+            raise TypeError(f"TIMER default must be int, got {type(v).__name__!r}: {v!r}")
+        return v
+
+    @staticmethod
     @tag_registry.expander("TIMER")
-    def _(name: str, preset: int) -> List[Tuple[str, str, Any]]:
+    def _(name: str, preset: int):
         actions.timer.start(name, enable=f"{name}.EN")
         return [
-            (f"{name}.PRE", "DINT", preset),
-            (f"{name}.ACC", "DINT", 0),
-            (f"{name}.EN",  "BOOL", 0),
-            (f"{name}.TT",  "BOOL", 0),
-            (f"{name}.DN",  "BOOL", 0),
+            (f"{name}.PRE", actions.type.DINT(preset)),
+            (f"{name}.ACC", actions.type.DINT(0)),
+            (f"{name}.EN",  actions.type.BOOL(False)),
+            (f"{name}.TT",  actions.type.BOOL(False)),
+            (f"{name}.DN",  actions.type.BOOL(False)),
         ]
 
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
