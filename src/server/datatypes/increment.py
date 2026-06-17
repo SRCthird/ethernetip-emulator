@@ -14,10 +14,12 @@ class Increment:
     def __init__(self, parent):
         self.parent = parent
 
+    @staticmethod
+    def type_validator(v: Any) -> int:
+        raise TypeError(f"INCREMENT is not a valid type. Use SINT, INT, or DINT instead.")
+
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
-        if tag_name.endswith(".EN"):
-            name_prefix = tag_name[: -len(".EN")]
-            self.start(name_prefix, key=key)
+        pass
 
     def start(
         self,
