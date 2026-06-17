@@ -14,24 +14,12 @@ def handle_i_text(attr, key, value) -> None:
     Increments O_Updates (COUNTER) and O_Updates.LAZY (INT) on every write.
     When O_Updates.DN is set, writes the sentinel "Count Completed" instead.
     """
-    registry = getattr(type(attr), "registry", {})
-    output_tag        = registry.get("O_TEXT.DATA")
-    output_count_done = registry.get("O_Updates.DN")
-
-    if output_tag is None:
-        return
-
-    try:
-        actions.counter.increment("O_Updates")
-        actions.increment.increment("O_Updates.LAZY")
-        # if actions.counter.is_done("O_Updates"):
-        if output_count_done is not None and output_count_done[key][0]:
-            actions.string.set_val("O_TEXT", key, ["Count Completed"])
-        else:
-            actions.string.set_val("O_TEXT", key, value)
-    except Exception:
-        if hasattr(output_tag, "value"):
-            setattr(output_tag, "value", value)
+    actions.counter.increment("O_Updates")
+    actions.increment.increment("O_Updates.LAZY")
+    if actions.counter.is_done("O_Updates"):
+        actions.string.set_val("O_TEXT", key, ["Count Completed"])
+    else:
+        actions.string.set_val("O_TEXT", key, value)
 
 @actions.timer.is_done("O_Timer")
 def handle_timer_done(attr, key, value) -> None:
