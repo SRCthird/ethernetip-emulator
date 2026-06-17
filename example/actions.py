@@ -6,7 +6,7 @@ from time import sleep
 
 from src.server.device import actions
 
-@actions.on_change("I_TEXT.DATA")
+@actions.string.on_change("I_TEXT")
 def handle_i_text(attr, key, value) -> None:
     """
     Mirror I_TEXT.DATA -> O_TEXT.DATA, maintaining the update counter.
@@ -17,7 +17,7 @@ def handle_i_text(attr, key, value) -> None:
     actions.counter.increment("O_Updates")
     actions.increment.increment("O_Updates.LAZY")
     if actions.counter.is_done("O_Updates"):
-        actions.string.set_val("O_TEXT", key, ["Count Completed"])
+        actions.string.set_val("O_TEXT", key, "Count Completed")
     else:
         actions.string.set_val("O_TEXT", key, value)
 

@@ -34,6 +34,9 @@ class String:
             name_prefix = tag_name[: -len(".DATA")]
             self._len_helper(name_prefix, key, value)
 
+    def on_change(self, name_prefix: str, callback=None, *, key=None):
+        return self.parent.on_change(f"{name_prefix}.DATA", callback, key=key)
+
     def get_val(self, name_prefix: str, key: Any):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
@@ -44,7 +47,7 @@ class String:
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
             return
-        data_tag[key] = value
+        data_tag[key] = value if isinstance(value, list) else [value]
         self._len_helper(name_prefix, key, value)
 
     def get_len(self, name_prefix: str, key: Any) -> int:
