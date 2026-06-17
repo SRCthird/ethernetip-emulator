@@ -11,10 +11,6 @@ def _tags():
         # (tag_name,          type_spec(default))
         ("I_TEXT",            actions.type.STRING("")),
         ("O_TEXT",            actions.type.STRING("")),
-        ("O_Lines",           actions.type.SSTRINGARRAY((
-            ("Hello", None, "World"), 
-            4
-        ))),
 
 
         ("O_INCR",            actions.type.INT(0)),
@@ -27,6 +23,14 @@ def _tags():
         ("O_16Bit",           actions.type.INT(0)),
         ("O_32Bit",           actions.type.DINT(0)),
         ("O_32Bit_Float",     actions.type.REAL(0.0)),
+
+        # Arrays
+        ("O_StringArray",           actions.type.SSTRINGARRAY((
+            ("A", "B", "C", "D"), 4
+        ))),
+        ("O_SintArray",           actions.type.SINTARRAY((
+            (1, 2, 3, 4), 4
+        ))),
 
         # Built-in composite types
         ("O_Updates",         actions.type.COUNTER(1000)),
