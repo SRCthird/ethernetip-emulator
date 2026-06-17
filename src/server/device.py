@@ -53,11 +53,11 @@ class AttributeDevice(device.Attribute):
         self._registry[name] = self
 
     def _apply_default(self, name: str, kwargs: Dict[str, Any]) -> None:
-        if name not in self._defaults:
+        if self._defaults is not None and name not in self._defaults:
             return
 
         configured_default = kwargs.get("default")
-        value = self._defaults[name]
+        value = self._defaults[name] if self._defaults is not None else None
 
         if isinstance(configured_default, list) and configured_default:
             new_default = list(configured_default)
