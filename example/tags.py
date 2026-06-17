@@ -11,7 +11,10 @@ def _tags():
         # (tag_name,          type_spec(default))
         ("I_TEXT",            actions.type.STRING("")),
         ("O_TEXT",            actions.type.STRING("")),
-        ("O_Lines",           actions.type.SSTRINGARRAY(4)),
+        ("O_Lines",           actions.type.SSTRINGARRAY((
+            ("Hello", None, "World"), 
+            4
+        ))),
 
 
         ("O_INCR",            actions.type.INT(0)),

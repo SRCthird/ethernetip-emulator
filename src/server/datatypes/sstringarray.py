@@ -20,15 +20,26 @@ class SstringArray:
         self.parent = parent
 
     @staticmethod
-    def type_validator(v: Any) -> int:
-        n = int(v)
-        if not (actions.sstringarray.MIN <= n <= actions.sstringarray.MAX):
-            raise ValueError(f"STRINGARRAY default size {n} is outside [0, 127]")
-        return n
+    def type_validator(v: Any):
+        if (
+            not isinstance(v, tuple)
+            and len(v) == 2
+            and isinstance(v[0], tuple)
+            and isinstance(v[1], int) and v[1] > 0
+            and len(v[0]) <= v[1]
+            and all(isinstance(item, str) for item in v[0])
+        ):
+            return v
+        raise TypeError(
+            f"SSTRINGARRAY default must be (tuple, count: int) tuple where the count of tuple doesn't exceed the count of array, got {v!r}"
+        )
 
     @staticmethod
     @tag_registry.expander("SSTRINGARRAY")
     def _(name: str, preset):
+        value, size = preset
+        padded = list(value) + [""] * (size - len(value))
         return [
-            (f"{name}", TypeSpec(f"SSTRING[{preset}]", None))
+            (f"{name}", TypeSpec(f"SSTRING[{size}]", padded))
         ]
+

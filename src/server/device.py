@@ -59,12 +59,22 @@ class AttributeDevice(device.Attribute):
         configured_default = kwargs.get("default")
         value = self._defaults[name] if self._defaults is not None else None
 
-        if isinstance(configured_default, list) and configured_default:
+        if isinstance(value, list):
+            if isinstance(configured_default, list) and configured_default:
+                new_default = list(configured_default)
+                for i, v in enumerate(value):
+                    if i < len(new_default):
+                        new_default[i] = v
+                kwargs["default"] = new_default
+            else:
+                kwargs["default"] = value
+        elif isinstance(configured_default, list) and configured_default:
             new_default = list(configured_default)
             new_default[0] = value
             kwargs["default"] = new_default
         else:
             kwargs["default"] = value
+
 
     def __setitem__(self, key: Any, value: Any) -> None:
         super().__setitem__(key, value)
