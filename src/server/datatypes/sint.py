@@ -11,12 +11,15 @@ if TYPE_CHECKING:
 
 @actions.datatype
 class Sint:
+    MAX = 127
+    MIN = -128
+
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
     @staticmethod
     def type_validator(v: Any) -> int:
         n = int(v)
-        if not (-128 <= n <= 127):
+        if not (actions.sint.MIN <= n <= actions.sint.MAX):
             raise ValueError(f"SINT default {n} is outside [-128, 127]")
         return n

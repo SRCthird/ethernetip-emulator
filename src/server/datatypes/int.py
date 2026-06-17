@@ -11,12 +11,14 @@ if TYPE_CHECKING:
 
 @actions.datatype
 class Int:
+    MAX = 32_767
+    MIN = -32_768
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
     @staticmethod
     def type_validator(v: Any) -> int:
         n = int(v)
-        if not (-32_768 <= n <= 32_767):
+        if not (actions.int.MIN <= n <= actions.int.MAX):
             raise ValueError(f"INT default {n} is outside [-32768, 32767]")
         return n

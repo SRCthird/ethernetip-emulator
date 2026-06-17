@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 @actions.datatype
 class Dint:
-    DINT_MAX: int = 2_147_483_647
-    DINT_MIN: int = -2_147_483_648
+    MAX: int = 2_147_483_647
+    MIN: int = -2_147_483_648
 
     def __init__(self, parent: AttributeActions):
         self.parent = parent
@@ -20,6 +20,6 @@ class Dint:
     @staticmethod
     def type_validator(v: Any) -> int:
         n = int(v)
-        if not (actions.dint.DINT_MIN <= n <= actions.dint.DINT_MAX):
+        if not (actions.dint.MIN <= n <= actions.dint.MAX):
             raise ValueError(f"DINT default {n} is outside [-2147483648, 2147483647]")
         return n

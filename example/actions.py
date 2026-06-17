@@ -32,4 +32,4 @@ def handle_timer_done(attr, key, value) -> None:
     if timer_enabled is not None:
         timer_enabled[key] = 0
 
-actions.increment.start(tag_name="O_INCR", wrap=32766)
+actions.increment.start(tag_name="O_INCR", start=32_757, wrap=actions.int.MAX)
