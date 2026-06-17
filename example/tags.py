@@ -2,8 +2,6 @@
 # All rights reserved
 
 # scope/tags.py
-from typing import Any, List, Tuple
-
 from src.server.tag_specs import tag_registry
 from src.server.actions import actions
 
@@ -16,6 +14,8 @@ def _tags():
 
         ("O_INCR",            actions.type.INT(0)),
         ("O_Updates.LAZY",    actions.type.INT(0)),   # lazy counter (separate)
+
+        ("I_BOOL",            actions.type.BOOL(0)),
 
         # Sized integer / float types
         ("O_8Bit",            actions.type.SINT(0)),
