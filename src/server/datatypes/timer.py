@@ -3,7 +3,7 @@
 
 # src/server/actions/timer.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable
 import time
 from src.server.device import actions
 from src.server.tag_specs import tag_registry

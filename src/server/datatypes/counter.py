@@ -3,7 +3,7 @@
 
 # src/server/actions/counter.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable
 from src.server.device import actions
 from src.server.tag_specs import tag_registry
 
@@ -168,7 +168,7 @@ class Counter:
                     self.parent._sleep(period)
                     continue
 
-            if acc >= self.parent.DINT_MAX:
+            if acc >= actions.dint.DINT_MAX:
                 if ov_attr is not None:
                     self.parent._write_attr(ov_attr, key, 1)
                 acc = 0
@@ -211,7 +211,7 @@ class Counter:
         acc = self.parent._read_attr(acc_attr, key) or 0
         pre = self.parent._read_attr(pre_attr, key) or 0
 
-        if acc >= self.parent.DINT_MAX:
+        if acc >= actions.dint.DINT_MAX:
             if ov_attr is not None:
                 self.parent._write_attr(ov_attr, key, 1)
             acc = 0
@@ -241,7 +241,7 @@ class Counter:
         acc = self.parent._read_attr(acc_attr, key) or 0
         pre = self.parent._read_attr(pre_attr, key) or 0 if pre_attr is not None else 0
 
-        if acc <= self.parent.DINT_MIN:
+        if acc <= actions.dint.DINT_MIN:
             if un_attr is not None:
                 self.parent._write_attr(un_attr, key, 1)
             acc = 0
