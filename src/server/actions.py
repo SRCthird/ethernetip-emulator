@@ -22,9 +22,9 @@ class TypeSpec:
 
     __slots__ = ("type_name", "default")
 
-    def __init__(self, type_name: str, default: Any, namespace: "TypeNamespace") -> None:
+    def __init__(self, type_name: str, default: Any, namespace: "TypeNamespace | None" = None) -> None:
         key = type_name.upper()
-        validator = namespace._types.get(key)
+        validator = namespace._types.get(key) if namespace is not None else None
         self.type_name: str = key
         self.default: Any = validator(default) if validator is not None else default
 
