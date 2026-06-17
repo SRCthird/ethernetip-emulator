@@ -13,26 +13,36 @@ if TYPE_CHECKING:
 
 @actions.datatype
 class SstringArray:
-    MAX = 127
-    MIN = 0 
-
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
     @staticmethod
     def type_validator(v: Any):
-        if (
-            not isinstance(v, tuple)
-            and len(v) == 2
-            and isinstance(v[0], tuple)
-            and isinstance(v[1], int) and v[1] > 0
-            and len(v[0]) <= v[1]
-            and all(isinstance(item, str) for item in v[0])
-        ):
-            return v
-        raise TypeError(
-            f"SSTRINGARRAY default must be (tuple, count: int) tuple where the count of tuple doesn't exceed the count of array, got {v!r}"
-        )
+        if not isinstance(v, tuple) or len(v) != 2:
+            raise TypeError(
+                f"SSTRINGARRAY default must be a 2-tuple (values: tuple[str, ...], size: int), got {type(v).__name__!r}: {v!r}"
+            )
+        values, size = v
+        if not isinstance(values, tuple):
+            raise TypeError(
+                f"SSTRINGARRAY default values must be a tuple of str, got {type(values).__name__!r}: {values!r}"
+            )
+        if not isinstance(size, int) or size <= 0:
+            raise TypeError(
+                f"SSTRINGARRAY size must be a positive int, got {type(size).__name__!r}: {size!r}"
+            )
+        if len(values) > size:
+            raise ValueError(
+                f"SSTRINGARRAY values length {len(values)} exceeds declared size {size}"
+            )
+        bad = [i for i, item in enumerate(values) if not isinstance(item, str)]
+        if bad:
+            raise TypeError(
+                f"SSTRINGARRAY values must all be str; non-str at indices {bad}: "
+                f"{[values[i] for i in bad]!r}"
+            )
+        return v
+
 
     @staticmethod
     @tag_registry.expander("SSTRINGARRAY")
