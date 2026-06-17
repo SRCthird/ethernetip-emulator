@@ -3,7 +3,7 @@
 
 # scope/tags.py
 from src.server.tag_specs import tag_registry
-from src.server.actions import actions
+from src.server.device import actions
 
 @tag_registry.register
 def _tags():
