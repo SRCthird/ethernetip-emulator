@@ -12,5 +12,6 @@ from src.server.datatypes.int import Int
 from src.server.datatypes.bool import Bool
 from src.server.datatypes.dint import Dint
 from src.server.datatypes.real import Real
+from src.server.datatypes.sstringarray import SstringArray
 
-__all__ = ["Increment", "Counter", "Timer", "String", "Sstring", "Sint", "Int", "Bool", "Dint", "Real"]
+__all__ = ["Increment", "Counter", "Timer", "String", "Sstring", "Sint", "Int", "Bool", "Dint", "Real", "SstringArray"]
