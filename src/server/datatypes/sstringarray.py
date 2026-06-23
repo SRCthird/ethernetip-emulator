@@ -18,28 +18,19 @@ class SstringArray:
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple) or len(v) != 2:
+        if not isinstance(v, tuple):
             raise TypeError(
-                f"SSTRINGARRAY default must be a 2-tuple (values: tuple[str, ...], size: int), got {type(v).__name__!r}: {v!r}"
+                f"SSTRINGARRAY default values must be a tuple of str, got {type(v).__name__!r}: {v!r}"
             )
-        values, size = v
-        if not isinstance(values, tuple):
-            raise TypeError(
-                f"SSTRINGARRAY default values must be a tuple of str, got {type(values).__name__!r}: {values!r}"
-            )
-        if not isinstance(size, int) or size <= 0:
-            raise TypeError(
-                f"SSTRINGARRAY size must be a positive int, got {type(size).__name__!r}: {size!r}"
-            )
-        if len(values) > size:
+        if len(v) == 0:
             raise ValueError(
-                f"SSTRINGARRAY values length {len(values)} exceeds declared size {size}"
+                f"SSTRINGARRAY values must not be empty"
             )
-        bad = [i for i, item in enumerate(values) if not isinstance(item, str)]
+        bad = [i for i, item in enumerate(v) if not isinstance(item, str)]
         if bad:
             raise TypeError(
                 f"SSTRINGARRAY values must all be str; non-str at indices {bad}: "
-                f"{[values[i] for i in bad]!r}"
+                f"{[v[i] for i in bad]!r}"
             )
         return v
 
@@ -47,9 +38,6 @@ class SstringArray:
     @staticmethod
     @tag_registry.expander("SSTRINGARRAY")
     def _(name: str, preset):
-        value, size = preset
-        padded = list(value) + [""] * (size - len(value))
         return [
-            (f"{name}", TypeSpec(f"SSTRING[{size}]", padded))
+            (f"{name}", TypeSpec(f"SSTRING[{len(preset)}]", list(preset)))
         ]
-
