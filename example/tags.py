@@ -25,11 +25,11 @@ def _tags():
         ("O_32Bit_Float",     actions.type.REAL(0.0)),
 
         # Arrays
-        ("O_StringArray",           actions.type.SSTRINGARRAY((
-            ("A", "B", "C", "D"), 4
+        ("O_StringArray",     actions.type.SSTRINGARRAY((
+            "A", "B", "", ""
         ))),
-        ("O_SintArray",           actions.type.SINTARRAY((
-            (1, 2, 3, 4), 4
+        ("O_SintArray",       actions.type.SINTARRAY((
+            1, 2, 0, 1
         ))),
 
         # Built-in composite types
