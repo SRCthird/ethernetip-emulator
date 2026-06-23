@@ -16,13 +16,24 @@ def _tags():
         ("O_INCR",            actions.type.INT(0)),
         ("O_Updates.LAZY",    actions.type.INT(0)),   # lazy counter (separate)
 
-        ("I_BOOL",            actions.type.BOOL(0)),
+        # Signed integers
+        ("O_SINT",            actions.type.SINT(0)),
+        ("O_INT",             actions.type.INT(0)),
+        ("O_DINT",            actions.type.DINT(0)),
+        ("O_LINT",            actions.type.LINT(0)),
 
-        # Sized integer / float types
-        ("O_8Bit",            actions.type.SINT(0)),
-        ("O_16Bit",           actions.type.INT(0)),
-        ("O_32Bit",           actions.type.DINT(0)),
-        ("O_32Bit_Float",     actions.type.REAL(0.0)),
+        # Unsigned integers
+        ("O_USINT",            actions.type.USINT(0)),
+        ("O_UINT",             actions.type.UINT(0)),
+        ("O_UDINT",            actions.type.UDINT(0)),
+        ("O_ULINT",            actions.type.ULINT(0)),
+
+        # Bool
+        ("O_BOOL",            actions.type.BOOL(0)),
+
+        # Float/Double
+        ("O_Float",           actions.type.REAL(0.0)), # 32 bit
+        ("O_Double",          actions.type.LREAL(0.0)), # 64 bit
 
         # Arrays
         ("O_StringArray",     actions.type.SSTRINGARRAY((
