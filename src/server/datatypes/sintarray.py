@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/sstringarray.py
+# src/server/actions/sintarray.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from src.server.device import actions
@@ -18,28 +18,25 @@ class SintArray:
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple) or len(v) != 2:
+        if not isinstance(v, tuple):
             raise TypeError(
-                f"SINTARRAY default must be a 2-tuple (values: tuple[int, ...], size: int), got {type(v).__name__!r}: {v!r}"
+                f"SINTARRAY default values must be a tuple of int, got {type(v).__name__!r}: {v!r}"
             )
-        values, size = v
-        if not isinstance(values, tuple):
-            raise TypeError(
-                f"SINTARRAY default values must be a tuple of int, got {type(values).__name__!r}: {values!r}"
-            )
-        if not isinstance(size, int) or size <= 0:
-            raise TypeError(
-                f"SINTARRAY size must be a positive int, got {type(size).__name__!r}: {size!r}"
-            )
-        if len(values) > size:
+        if len(v) == 0:
             raise ValueError(
-                f"SINTARRAY values length {len(values)} exceeds declared size {size}"
+                f"SINTARRAY values must not be empty"
             )
-        bad = [i for i, n in enumerate(values) if not (actions.sint.MIN <= n <= actions.sint.MAX)]
-        if bad:
+        not_int = [i for i, n in enumerate(v) if not isinstance(n, int)]
+        if not_int:
             raise TypeError(
-                f"SINTARRAY values {bad} are outside range [-128, 127]: "
-                f"{[values[i] for i in bad]!r}"
+                f"SINTARRAY values must all be int; non-int at indices {not_int}: "
+                f"{[v[i] for i in not_int]!r}"
+            )
+        out_of_range = [i for i, n in enumerate(v) if not (actions.sint.MIN <= n <= actions.sint.MAX)]
+        if out_of_range:
+            raise ValueError(
+                f"SINTARRAY values outside [{actions.sint.MIN}, {actions.sint.MAX}] at indices {out_of_range}: "
+                f"{[v[i] for i in out_of_range]!r}"
             )
         return v
 
@@ -47,9 +44,6 @@ class SintArray:
     @staticmethod
     @tag_registry.expander("SINTARRAY")
     def _(name: str, preset):
-        value, size = preset
-        padded = list(value) + [""] * (size - len(value))
         return [
-            (f"{name}", TypeSpec(f"SINT[{size}]", padded))
+            (f"{name}", TypeSpec(f"SINT[{len(preset)}]", list(preset)))
         ]
-
