@@ -26,10 +26,22 @@ def _tags():
 
         # Arrays
         ("O_StringArray",     actions.type.SSTRINGARRAY((
-            "A", "B", "", ""
+            "A", "B", "B", "C"
         ))),
         ("O_SintArray",       actions.type.SINTARRAY((
-            1, 2, 0, 1
+            1, 2, 3, 4
+        ))),
+        ("O_IntArray",       actions.type.INTARRAY((
+            5, 6, 7, 8
+        ))),
+        ("O_DintArray",       actions.type.DINTARRAY((
+            9, 10, 11, 12
+        ))),
+        ("O_BoolArray",       actions.type.BOOLARRAY((
+            True, True, False, True
+        ))),
+        ("O_RealArray",       actions.type.REALARRAY((
+            1.2, 3.4, 5.6, 7.8
         ))),
 
         # Built-in composite types
