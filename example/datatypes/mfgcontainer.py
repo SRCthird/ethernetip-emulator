@@ -35,10 +35,27 @@ class MFGContainer:
         sn, lot, container = preset
         return [
             (f"{name}.SN",  actions.type.DINT(int(sn))),
-            (f"{name}.SSN", actions.type.SSTRING(sn)),
-            (f"{name}.LN",  actions.type.SSTRING(lot)),
-            (f"{name}.CN",  actions.type.SSTRING(container)),
+            (f"{name}.SSN", actions.type.STRING(sn)),
+            (f"{name}.LN",  actions.type.STRING(lot)),
+            (f"{name}.CN",  actions.type.STRING(container)),
         ]
 
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
-        pass
+        # Formats int Serial Number to String Serial Number
+        if tag_name.endswith(".SN"):
+            name_prefix = tag_name[: -len(".SN")]
+            actions.string.set_val(f"{name_prefix}.SSN", key, f"{value[0]:04}")
+
+        # Reverts any write to SSN
+        if tag_name.endswith(".SSN.DATA"):
+            name_prefix = tag_name[: -len(".SSN.DATA")]
+            data_tag = self.parent._lookup(f"{name_prefix}.SN")
+            if data_tag is None:
+                return None
+            old_val = data_tag[key]
+            actions.string.set_val(f"{name_prefix}.SSN", key, f"{old_val[0]:04}")
+
+        # String length helper for String types
+        if tag_name.endswith(".DATA"):
+            name_prefix = tag_name[: -len(".DATA")]
+            actions.string._len_helper(name_prefix, key, value)
