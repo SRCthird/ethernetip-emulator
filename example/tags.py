@@ -23,10 +23,10 @@ def _tags():
         ("O_LINT",            actions.type.LINT(0)),
 
         # Unsigned integers
-        ("O_USINT",            actions.type.USINT(0)),
-        ("O_UINT",             actions.type.UINT(0)),
-        ("O_UDINT",            actions.type.UDINT(0)),
-        ("O_ULINT",            actions.type.ULINT(0)),
+        ("O_USINT",           actions.type.USINT(0)),
+        ("O_UINT",            actions.type.UINT(0)),
+        ("O_UDINT",           actions.type.UDINT(0)),
+        ("O_ULINT",           actions.type.ULINT(0)),
 
         # Bool
         ("O_BOOL",            actions.type.BOOL(0)),
@@ -40,18 +40,36 @@ def _tags():
             "A", "B", "B", "C"
         ))),
         ("O_SintArray",       actions.type.SINTARRAY((
+            -1, 2, -3, 4
+        ))),
+        ("O_UsintArray",      actions.type.USINTARRAY((
             1, 2, 3, 4
         ))),
-        ("O_IntArray",       actions.type.INTARRAY((
+        ("O_IntArray",        actions.type.INTARRAY((
+            -5, 6, -7, 8
+        ))),
+        ("O_UintArray",       actions.type.UINTARRAY((
             5, 6, 7, 8
         ))),
         ("O_DintArray",       actions.type.DINTARRAY((
+            -9, 10, -11, 12
+        ))),
+        ("O_UdintArray",      actions.type.UDINTARRAY((
+            9, 10, 11, 12
+        ))),
+        ("O_LintArray",       actions.type.LINTARRAY((
+            -9, 10, -11, 12
+        ))),
+        ("O_UlintArray",      actions.type.ULINTARRAY((
             9, 10, 11, 12
         ))),
         ("O_BoolArray",       actions.type.BOOLARRAY((
             True, True, False, True
         ))),
         ("O_RealArray",       actions.type.REALARRAY((
+            1.2, 3.4, 5.6, 7.8
+        ))),
+        ("O_LrealArray",      actions.type.LREALARRAY((
             1.2, 3.4, 5.6, 7.8
         ))),
 
