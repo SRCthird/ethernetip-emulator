@@ -32,8 +32,8 @@ def _tags():
         ("O_BOOL",            actions.type.BOOL(0)),
 
         # Float/Double
-        ("O_Float",           actions.type.REAL(0.0)), # 32 bit
-        ("O_Double",          actions.type.LREAL(0.0)), # 64 bit
+        ("O_REAL",            actions.type.REAL(0.0)), # 32 bit
+        ("O_LREAL",           actions.type.LREAL(0.0)), # 64 bit
 
         # Arrays
         ("O_StringArray",     actions.type.SSTRINGARRAY((
