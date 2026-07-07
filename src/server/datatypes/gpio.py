@@ -194,4 +194,11 @@ try:
             self._gpio.cleanup()
             self._pins.clear()
 except ImportError:
-    pass
+    @actions.datatype
+    class Gpio:
+        def __init__(self, parent: AttributeActions):
+            self.parent = parent
+
+        @staticmethod
+        def type_validator(_: Any) -> int:
+            raise TypeError(f"GPIO is not a usable. Neither RPi.GPIO nor OPi.GPIO is installed")
