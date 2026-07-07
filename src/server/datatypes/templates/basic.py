@@ -24,7 +24,7 @@ class Basic:
             return None
         return data_tag[key]
 
-    def set_val(self, name_prefix: str, key: Any, value: bool):
+    def set_val(self, name_prefix: str, key: Any, value: Any):
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
