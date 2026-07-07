@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 @actions.datatype
 class MFGContainer(Basic):
     def __init__(self, parent: AttributeActions):
-        self.parent = parent
+        super().__init__(parent)
 
     @staticmethod
     def type_validator(v: Any) -> Tuple[str, str, str]:
