@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/actions.py
+# src/server/actions.py
 from __future__ import annotations
 
 import threading
