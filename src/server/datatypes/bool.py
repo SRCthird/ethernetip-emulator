@@ -22,3 +22,22 @@ class Bool:
             raise TypeError(
                 f"BOOL default must be boolean, got {type(v).__name__!r}: {v!r}"
             ) from exc
+
+    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        pass
+
+    def on_change(self, name_prefix: str, callback=None, *, key=None):
+        return self.parent.on_change(name_prefix, callback, key=key)
+
+    def get_val(self, name_prefix: str, key: bool):
+        data_tag = self.parent._lookup(name_prefix)
+        if data_tag is None:
+            return None
+        return data_tag[key]
+
+    def set_val(self, name_prefix: str, key: Any, value: bool):
+        data_tag = self.parent._lookup(name_prefix)
+        if data_tag is None:
+            return
+        data_tag[key] = value if isinstance(value, list) else [value]
+

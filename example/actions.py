@@ -34,6 +34,15 @@ def handle_timer_done(attr, key, value) -> None:
 
 actions.increment.start(tag_name="O_INCR", start=32_757, wrap=actions.int.MAX)
 
+@actions.bool.on_change("O_BOOL")
+def handle_bool(attr, key, value) -> None:
+    if value[0] is True:
+        actions.boolarray.set_val("O_BoolArray", slice(2,3), True)
+        print(actions.boolarray.get_val("O_BoolArray", slice(2,3)))
+    if value[0] is False:
+        actions.boolarray.set_val("O_BoolArray", slice(0,4), [False,True,False,True])
+        print(actions.boolarray.get_val("O_BoolArray", slice(0,4)))
+
 def pi_actions():
     actions.gpio.start_polling("GPIO_40")
     @actions.gpio.on_change("GPIO_40")
