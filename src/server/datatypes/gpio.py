@@ -28,6 +28,10 @@ def _import_gpio():
 @actions.datatype
 class Gpio:
     def __init__(self, parent: AttributeActions):
+        try:
+            _import_gpio()
+        except ImportError:
+            return
         self.parent = parent
         self._gpio, self._platform = _import_gpio()
         self._gpio.setmode(
