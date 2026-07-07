@@ -11,15 +11,12 @@ if TYPE_CHECKING:
 
 @actions.datatype
 class Increment:
-    def __init__(self, parent):
+    def __init__(self, parent: AttributeActions):
         self.parent = parent
 
     @staticmethod
-    def type_validator(v: Any) -> int:
+    def type_validator(_: Any) -> int:
         raise TypeError(f"INCREMENT is not a valid type. Use SINT, INT, or DINT instead.")
-
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
-        pass
 
     def start(
         self,
