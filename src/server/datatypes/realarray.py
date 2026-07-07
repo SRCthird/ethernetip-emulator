@@ -1,9 +1,10 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/realarray.py
+# src/server/datatypes/realarray.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from src.server.datatypes.templates import Basic
 from src.server.device import actions
 from src.server.actions import TypeSpec
 from src.server.tag_specs import tag_registry
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
 @actions.datatype
-class RealArray:
+class RealArray(Basic):
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 

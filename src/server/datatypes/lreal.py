@@ -1,18 +1,19 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/lreal.py
+# src/server/datatypes/lreal.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from src.server.datatypes.templates import Basic
 from src.server.device import actions
 
 if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
 @actions.datatype
-class LReal:
+class LReal(Basic):
     def __init__(self, parent: AttributeActions):
-        self.parent = parent
+        super().__init__(parent)
 
     @staticmethod
     def type_validator(v: Any) -> float:

@@ -1,9 +1,10 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/datatype/string.py
+# src/server/datatypes/string.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
+from src.server.datatypes.templates import Basic
 from src.server.tag_specs import tag_registry
 from src.server.device import actions
 
@@ -11,9 +12,9 @@ if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
 @actions.datatype
-class String:
+class String(Basic):
     def __init__(self, parent: AttributeActions):
-        self.parent = parent
+        super().__init__(parent)
 
     @staticmethod
     def type_validator(v: Any) -> str:
@@ -29,20 +30,24 @@ class String:
             (f"{name}.DATA", actions.type.SSTRING(preset)),
         ]
 
+    @override
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         if tag_name.endswith(".DATA"):
             name_prefix = tag_name[: -len(".DATA")]
             self._len_helper(name_prefix, key, value)
 
+    @override
     def on_change(self, name_prefix: str, callback=None, *, key=None):
         return self.parent.on_change(f"{name_prefix}.DATA", callback, key=key)
 
+    @override
     def get_val(self, name_prefix: str, key: Any):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
             return None
         return data_tag[key]
     
+    @override
     def set_val(self, name_prefix: str, key: Any, value: str):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
