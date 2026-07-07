@@ -29,7 +29,7 @@ class Bool:
     def on_change(self, name_prefix: str, callback=None, *, key=None):
         return self.parent.on_change(name_prefix, callback, key=key)
 
-    def get_val(self, name_prefix: str, key: bool):
+    def get_val(self, name_prefix: str, key: Any):
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return None
