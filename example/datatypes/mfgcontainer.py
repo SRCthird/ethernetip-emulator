@@ -3,7 +3,8 @@
 
 # src/server/datatype/mfgcontainer.py
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Tuple
+from typing import TYPE_CHECKING, Any, Tuple, override
+from src.server.datatypes.templates import Basic
 from src.server.tag_specs import tag_registry
 from src.server.device import actions
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 
 @actions.datatype
-class MFGContainer:
+class MFGContainer(Basic):
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
@@ -40,6 +41,7 @@ class MFGContainer:
             (f"{name}.CN",  actions.type.STRING(container)),
         ]
 
+    @override
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         # Formats int Serial Number to String Serial Number
         if tag_name.endswith(".SN"):

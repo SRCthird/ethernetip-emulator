@@ -4,22 +4,23 @@
 # src/server/actions/dint.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from src.server.datatypes.templates import Basic
 from src.server.device import actions
 
 if TYPE_CHECKING:
     from src.server.actions import AttributeActions
 
 @actions.datatype
-class Dint:
+class Dint(Basic):
     MAX: int = 2_147_483_647
     MIN: int = -2_147_483_648
 
     def __init__(self, parent: AttributeActions):
-        self.parent = parent
+        super().__init__(parent)
 
     @staticmethod
     def type_validator(v: Any) -> int:
         n = int(v)
         if not (actions.dint.MIN <= n <= actions.dint.MAX):
-            raise ValueError(f"DINT default {n} is outside [-2147483648, 2147483647]")
+            raise ValueError(f"DINT default {n} is outside [{actions.dint.MIN}, {actions.dint.MAX}]")
         return n
