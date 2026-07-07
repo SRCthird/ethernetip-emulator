@@ -80,4 +80,26 @@ def _tags():
 
         # Custom composite type
         ("O_Container",       actions.type.MFGCONTAINER(("1011", "LOT001", "CONT001"))),
+
     ]
+
+def pi_tags():
+    @tag_registry.register
+    def _pi_tags():
+        return [
+            # GPIO Tag
+            ("GPIO_18",           actions.type.GPIO(("PH04", False, "out"))),
+            ("GPIO_40",           actions.type.GPIO(("PI03", True, "in"))),
+        ]
+
+
+try:
+    import RPi.GPIO as GPIO
+    pi_tags()
+except ImportError:
+    pass
+try:
+    import OPi.GPIO as GPIO
+    pi_tags()
+except ImportError:
+    pass

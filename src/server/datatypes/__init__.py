@@ -30,6 +30,7 @@ from src.server.datatypes.ulint import Ulint
 from src.server.datatypes.ulintarray import UlintArray
 from src.server.datatypes.usint import Usint
 from src.server.datatypes.usintarray import UsintArray
+from src.server.datatypes.gpio import Gpio
 
 __all__ = [
     "Increment", "Counter", "Timer", 
@@ -40,5 +41,6 @@ __all__ = [
     "RealArray", "LReal", "LrealArray", 
     "Lint", "Udint", "Uint", "Ulint",
     "Usint", "LintArray", "UdintArray",
-    "UintArray", "UlintArray", "UsintArray"
+    "UintArray", "UlintArray", "UsintArray",
+    "Gpio"
 ]

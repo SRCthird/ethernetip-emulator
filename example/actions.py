@@ -33,3 +33,20 @@ def handle_timer_done(attr, key, value) -> None:
         timer_enabled[key] = 0
 
 actions.increment.start(tag_name="O_INCR", start=32_757, wrap=actions.int.MAX)
+
+def pi_actions():
+    actions.gpio.start_polling("GPIO_40")
+    @actions.gpio.on_change("GPIO_40")
+    def handle_button(attr, key, value):
+        actions.gpio.write_pin("GPIO_18", attr, key, not value)
+
+try:
+    import RPi.GPIO as GPIO
+    pi_actions()
+except ImportError:
+    pass
+try:
+    import OPi.GPIO as GPIO
+    pi_actions()
+except ImportError:
+    pass
