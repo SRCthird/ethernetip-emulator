@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/increment.py
+# src/server/datatypes/increment.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from src.server.device import actions
