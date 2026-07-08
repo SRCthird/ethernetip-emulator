@@ -23,7 +23,7 @@ class Increment:
         tag_name: str,
         *,
         period: float = 1.0,
-        key: Any = 0,
+        key: slice | None = None,
         increment: int = 1,
         wrap: int | None = None,
         initial_delay: float = 1.0,
@@ -46,7 +46,7 @@ class Increment:
         *,
         tag_name: str,
         period: float,
-        key: Any,
+        key: slice | None = None,
         start: int | None,
         increment: int,
         wrap: int | None,
@@ -71,25 +71,25 @@ class Increment:
             if wrap is not None:
                 n %= wrap
 
-            self.parent._write_attr(attr, key, n)
+            self.parent._write_attr(attr, n, key)
             self.parent._sleep(period)
 
-    def increment(self, tag_name: str, *, increment: int = 1, key: Any = 0) -> None:
+    def increment(self, tag_name: str, *, increment: int = 1, key: slice | None = None) -> None:
         attr = self.parent._lookup(tag_name)
         n: int = self.parent._read_attr(attr, key) or 0
         n += increment
         if attr:
-            self.parent._write_attr(attr, key, n)
+            self.parent._write_attr(attr, n, key)
 
-    def decrement(self, tag_name: str, decrement: int = 1, *, key: Any = 0) -> None:
+    def decrement(self, tag_name: str, decrement: int = 1, *, key: slice | None = None) -> None:
         attr = self.parent._lookup(tag_name)
         n: int = self.parent._read_attr(attr, key) or 0
         n -= decrement
         if attr:
-            self.parent._write_attr(attr, key, n)
+            self.parent._write_attr(attr, n, key)
 
-    def reset(self, tag_name: str, *, default: int = 0, key: Any = 0) -> None:
+    def reset(self, tag_name: str, *, default: int = 0, key: slice | None = None) -> None:
         attr = self.parent._lookup(tag_name)
         if attr:
-            self.parent._write_attr(attr, key, default)
+            self.parent._write_attr(attr, default, key)
 

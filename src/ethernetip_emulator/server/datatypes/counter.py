@@ -55,7 +55,7 @@ class Counter:
             (f"{name}.RES", actions.type.BOOL(False)),
         ]
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
         if tag_name.endswith(".RES"):
             name_prefix = tag_name[: -len(".RES")]
             self.reset(name_prefix, key=key)
@@ -64,7 +64,7 @@ class Counter:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        key: slice | None = None,
     ) -> CounterIsDone:
         tag = f"{tag_prefix}.DN"
 
@@ -81,7 +81,7 @@ class Counter:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        key: slice | None = None,
     ) -> CounterIsReset:
         tag = f"{tag_prefix}.RES"
 
@@ -98,7 +98,7 @@ class Counter:
         tag_prefix: str,
         *,
         period: float = 1.0,
-        key: Any = 0,
+        key: slice | None = None,
         preset: int | None = None,
         initial_delay: float = 1.0,
         enable: str | Callable[[], bool] | None = None,
@@ -119,9 +119,9 @@ class Counter:
         *,
         tag_prefix: str,
         period: float,
-        key: Any,
         preset: int | None,
         initial_delay: float,
+        key: slice | None = None,
         enable: str | Callable[[], bool] | None = None,
     ) -> None:
         acc_tag = f"{tag_prefix}.ACC"
@@ -136,11 +136,11 @@ class Counter:
         if preset is not None:
             pre_attr = self.parent._lookup(pre_tag)
             if pre_attr is not None:
-                self.parent._write_attr(pre_attr, key, preset)
+                self.parent._write_attr(pre_attr, preset, key)
 
         cu_attr = self.parent._lookup(cu_tag)
         if cu_attr is not None:
-            self.parent._write_attr(cu_attr, key, 1)
+            self.parent._write_attr(cu_attr, 1, key)
 
         acc_attr = self.parent._lookup(acc_tag)
         acc: int = self.parent._read_attr( acc_attr, key ) or 0
@@ -170,35 +170,35 @@ class Counter:
 
             if acc >= actions.dint.MAX:
                 if ov_attr is not None:
-                    self.parent._write_attr(ov_attr, key, 1)
+                    self.parent._write_attr(ov_attr, 1, key)
                 acc = 0
-                self.parent._write_attr(acc_attr, key, acc)
+                self.parent._write_attr(acc_attr, acc, key)
                 self.parent._sleep(period)
                 if ov_attr is not None:
-                    self.parent._write_attr(ov_attr, key, 0)
+                    self.parent._write_attr(ov_attr, 0, key)
                 continue
 
             acc += 1
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, acc, key)
 
             if pre > 0 and acc >= pre:
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 1)
+                    self.parent._write_attr(dn_attr, 1, key)
                 self.parent._sleep(period)
                 acc = 0
-                self.parent._write_attr(acc_attr, key, acc)
+                self.parent._write_attr(acc_attr, acc, key)
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 0)
+                    self.parent._write_attr(dn_attr, 0, key)
                 continue
 
             self.parent._sleep(period)
 
         cu_attr = self.parent._lookup(cu_tag)
         if cu_attr is not None:
-            self.parent._write_attr(cu_attr, key, 0)
+            self.parent._write_attr(cu_attr, 0, key)
 
 
-    def increment(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def increment(self, tag_prefix: str, *, key: slice | None = None) -> None:
         acc_attr = self.parent._lookup(f"{tag_prefix}.ACC")
         pre_attr = self.parent._lookup(f"{tag_prefix}.PRE")
         dn_attr  = self.parent._lookup(f"{tag_prefix}.DN")
@@ -213,22 +213,22 @@ class Counter:
 
         if acc >= actions.dint.MAX:
             if ov_attr is not None:
-                self.parent._write_attr(ov_attr, key, 1)
+                self.parent._write_attr(ov_attr, 1, key)
             acc = 0
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, acc, key)
             return
 
         acc += 1
-        self.parent._write_attr(acc_attr, key, acc)
+        self.parent._write_attr(acc_attr, acc, key)
 
         if ov_attr is not None:
-            self.parent._write_attr(ov_attr, key, 0)
+            self.parent._write_attr(ov_attr, 0, key)
 
         if pre > 0 and acc >= pre:
             if dn_attr is not None:
-                self.parent._write_attr(dn_attr, key, 1)
+                self.parent._write_attr(dn_attr, 1, key)
 
-    def decrement(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def decrement(self, tag_prefix: str, *, key: slice | None = None) -> None:
         acc_attr = self.parent._lookup(f"{tag_prefix}.ACC")
         pre_attr = self.parent._lookup(f"{tag_prefix}.PRE")
         dn_attr  = self.parent._lookup(f"{tag_prefix}.DN")
@@ -243,21 +243,21 @@ class Counter:
 
         if acc <= actions.dint.MIN:
             if un_attr is not None:
-                self.parent._write_attr(un_attr, key, 1)
+                self.parent._write_attr(un_attr, 1, key)
             acc = 0
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, acc, key)
             return
 
         acc -= 1
-        self.parent._write_attr(acc_attr, key, acc)
+        self.parent._write_attr(acc_attr, acc, key)
 
         if un_attr is not None:
-            self.parent._write_attr(un_attr, key, 0)
+            self.parent._write_attr(un_attr, 0, key)
 
         if dn_attr is not None and pre > 0 and acc < pre:
-            self.parent._write_attr(dn_attr, key, 0)
+            self.parent._write_attr(dn_attr, 0, key)
 
-    def reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def reset(self, tag_prefix: str, *, key: slice | None = None) -> None:
         for tag, value in [
             (f"{tag_prefix}.ACC", 0),
             (f"{tag_prefix}.DN",  0),
@@ -267,5 +267,5 @@ class Counter:
         ]:
             attr = self.parent._lookup(tag)
             if attr is not None:
-                self.parent._write_attr(attr, key, value)
+                self.parent._write_attr(attr, value, key)
 

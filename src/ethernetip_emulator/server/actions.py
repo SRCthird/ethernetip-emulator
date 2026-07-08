@@ -169,7 +169,7 @@ class AttributeActions:
     def _get_attr_class(self) -> Any | None:
         return self._attr_class_ref() if self._attr_class_ref else None
 
-    def _read_attr(self, attr: Any, key: Any) -> int | None:
+    def _read_attr(self, attr: Any, key: slice | None) -> int | None:
         try:
             return int(attr[key])
         except Exception as e:
@@ -179,7 +179,7 @@ class AttributeActions:
             self._logger(f"Failed to read {key} from attr: {e}")
             return None
 
-    def _write_attr(self, attr: Any, key: Any, value: int) -> None:
+    def _write_attr(self, attr: Any, value: int, key: slice | None) -> None:
         try:
             attr[key] = value
         except (TypeError, KeyError, IndexError):
@@ -206,12 +206,12 @@ class AttributeActions:
 
     @overload
     def on_change(
-        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: Any | None = ...
+        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, defer=False, key: slice | None = ...
     ) -> "AttributeActions": ...
 
     @overload
     def on_change(
-        self, tag_name: str, callback: None = ..., *, key: Any | None = ...
+        self, tag_name: str, callback: None = ..., *, defer=False, key: slice | None = ...
     ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
 
     def on_change(
@@ -219,11 +219,21 @@ class AttributeActions:
         tag_name: str,
         callback: Callable[[Any, Any, Any], None] | None = None,
         *,
-        key: Any | None = None,
+        key: slice | None = None,
+        defer: bool = False,
     ) -> "AttributeActions | Callable":
+        def _wrap(fn: Callable) -> Callable:
+            if not defer:
+                return fn
+            def deferred(attr, value, k):
+                t = self._thread_factory(target=lambda: fn(attr, value, k), daemon=True)
+                t.start()
+            deferred.__name__ = getattr(fn, "__name__", "deferred")
+            return deferred
+
         def _register(fn: Callable) -> None:
             with self._listener_lock:
-                self._listeners.setdefault(tag_name, []).append((fn, key))
+                self._listeners.setdefault(tag_name, []).append((_wrap(fn), key))
 
         if callback is not None:
             _register(callback)
@@ -235,19 +245,20 @@ class AttributeActions:
 
         return decorator
 
+
     def remove_listeners(self, tag_name: str) -> "AttributeActions":
         with self._listener_lock:
             self._listeners.pop(tag_name, None)
         return self
 
-    def _fire_listeners(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def _fire_listeners(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
         with self._listener_lock:
             entries = list(self._listeners.get(tag_name, []))
         for callback, key_filter in entries:
             if key_filter is not None and key_filter != key:
                 continue
             try:
-                callback(attr, key, value)
+                callback(attr, value, key)
             except Exception as exc:
                 self._logger(f"AttributeActions: listener error for {tag_name}: {exc}")
 
@@ -262,7 +273,7 @@ class AttributeActions:
     def is_running(self) -> bool:
         return any(t.is_alive() for t in self._threads)
 
-    def on_set(self, attr: Any, key: Any, value: Any) -> None:
+    def on_set(self, attr: Any, value: Any, key: slice | None = None) -> None:
         from src.ethernetip_emulator.server.tag_specs import tag_registry
 
         tag_name = getattr(attr, "name", None)
@@ -275,6 +286,6 @@ class AttributeActions:
             if dt is not None:
                 hook = getattr(dt, "on_set_hook", None)
                 if hook is not None:
-                    hook(tag_name, attr, key, value)
+                    hook(tag_name, attr, value, key)
 
-        self._fire_listeners(tag_name, attr, key, value)
+        self._fire_listeners(tag_name, attr, value, key)

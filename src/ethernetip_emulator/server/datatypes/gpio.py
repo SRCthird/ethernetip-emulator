@@ -95,7 +95,7 @@ try:
                 (f"{name}.SETUP", actions.type.BOOL(False)),
             ]
 
-        def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
             if not tag_name.endswith(".VALUE"):
                 return
             name_prefix = tag_name[: -len(".VALUE")]
@@ -110,7 +110,7 @@ try:
             if mode == "out":
                 self._gpio.output(pin, bool(value[0] if isinstance(value, list) else value))
 
-        def on_change(self, name_prefix: str, callback=None, *, key=None):
+        def on_change(self, name_prefix: str, callback=None, *, key: slice | None =None):
             return self.parent.on_change(f"{name_prefix}.VALUE", callback, key=key)
 
         def setup(self, name_prefix: str) -> None:
@@ -144,12 +144,12 @@ try:
             name_prefix: str,
             *,
             period: float = 0.01,
-            key: Any = 0,
+            key: slice | None = None,
         ) -> "AttributeActions":
             def _launch() -> None:
                 self.parent._start_worker(
                     f"gpio.poll.{name_prefix}",
-                    lambda: self._poll_pin(name_prefix, key, period),
+                    lambda: self._poll_pin(name_prefix, period, key),
                 )
 
             if self.parent._entered:
@@ -159,7 +159,7 @@ try:
 
             return self.parent
 
-        def _poll_pin(self, name_prefix: str, key: Any, period: float) -> None:
+        def _poll_pin(self, name_prefix: str, period: float, key: slice | None = None) -> None:
             self.setup(name_prefix)
             pin = self._pins.get(name_prefix)
             last = None
@@ -184,7 +184,7 @@ try:
                 return False
             return bool(self._gpio.input(pin))
 
-        def write_pin(self, name_prefix: str, attr, key: Any, value: str):
+        def write_pin(self, name_prefix: str, attr, value: str, key: slice | None = None):
             data_tag = self.parent._lookup(f"{name_prefix}.VALUE")
             if data_tag is None:
                 return

@@ -58,31 +58,31 @@ class Timer:
             (f"{name}.DN",  actions.type.BOOL(False)),
         ]
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
         pass
 
     def get_preset(self, tag_prefix: str, key: Any):
         data_tag = self.parent._lookup(f"{tag_prefix}.PRE")
         if data_tag is None:
             return None
-        return data_tag[key]
+        return data_tag[0]
 
     def set_preset(self, tag_prefix: str, key: Any, value: int):
         attr = self.parent._lookup(f"{tag_prefix}.PRE")
         if attr:
-            self.parent._write_attr(attr, key, value)
+            self.parent._write_attr(attr, value, key)
 
-    def get_accumulator(self, tag_prefix: str, key: Any):
+    def get_accumulator(self, tag_prefix: str, key: slice | None = None):
         data_tag = self.parent._lookup(f"{tag_prefix}.ACC")
         if data_tag is None:
             return None
-        return data_tag[key]
+        return data_tag[0]
 
     def is_enabled(
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        key: slice | None = None,
     ) -> TimerIsEnabled:
         tag = f"{tag_prefix}.EN"
 
@@ -98,7 +98,7 @@ class Timer:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        key: slice | None = None,
     ) -> TimerIsDone:
         tag = f"{tag_prefix}.DN"
 
@@ -114,7 +114,7 @@ class Timer:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        key: slice | None = None,
     ) -> TimerIsTiming:
         tag = f"{tag_prefix}.TT"
 
@@ -131,7 +131,7 @@ class Timer:
         tag_prefix: str,
         *,
         period: float = 0.1,
-        key: Any = 0,
+        key: slice | None = None,
         preset_ms: int | None = None,
         initial_delay: float = 1.0,
         enable: str | Callable[[], bool] | None = None,
@@ -160,7 +160,7 @@ class Timer:
         *,
         tag_prefix: str,
         period: float,
-        key: Any,
+        key: slice | None = None,
         preset_ms: int | None,
         initial_delay: float,
         enable: str | Callable[[], bool] | None = None,
@@ -177,7 +177,7 @@ class Timer:
         if preset_ms is not None:
             pre_attr = self.parent._lookup(pre_tag)
             if pre_attr is not None:
-                self.parent._write_attr(pre_attr, key, preset_ms)
+                self.parent._write_attr(pre_attr, preset_ms, key)
 
         was_enabled = False
         t_start: float | None = None
@@ -212,7 +212,7 @@ class Timer:
                     (acc_attr, 0), (en_attr, 0), (tt_attr, 0), (dn_attr, 0),
                 ]:
                     if attr is not None:
-                        self.parent._write_attr(attr, key, val)
+                        self.parent._write_attr(attr, val, key)
                 was_enabled = False
                 self.parent._sleep(period)
                 continue
@@ -225,31 +225,31 @@ class Timer:
                 t_start = time.monotonic()
                 was_enabled = True
                 if en_attr is not None:
-                    self.parent._write_attr(en_attr, key, 1)
+                    self.parent._write_attr(en_attr, 1, key)
 
             pre = self.parent._read_attr(pre_attr, key) or 0
             elapsed_ms = int((time.monotonic() - t_start) * 1000) if t_start is not None else 0
             acc = min(elapsed_ms, pre) if pre > 0 else elapsed_ms
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, acc, key)
 
             if pre > 0 and elapsed_ms >= pre:
                 if tt_attr is not None:
-                    self.parent._write_attr(tt_attr, key, 0)
+                    self.parent._write_attr(tt_attr, 0, key)
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 1)
+                    self.parent._write_attr(dn_attr, 1, key)
             else:
                 if tt_attr is not None:
-                    self.parent._write_attr(tt_attr, key, 1)
+                    self.parent._write_attr(tt_attr, 1, key)
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 0)
+                    self.parent._write_attr(dn_attr, 0, key)
 
             self.parent._sleep(period)
 
         for attr in [acc_attr, en_attr, tt_attr, dn_attr]:
             if attr is not None:
-                self.parent._write_attr(attr, key, 0)
+                self.parent._write_attr(attr, 0, key)
 
-    def reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def reset(self, tag_prefix: str, *, key: slice | None = None) -> None:
         for tag in [
             f"{tag_prefix}.ACC",
             f"{tag_prefix}.EN",
@@ -259,4 +259,4 @@ class Timer:
         ]:
             attr = self.parent._lookup(tag)
             if attr is not None:
-                self.parent._write_attr(attr, key, 0)
+                self.parent._write_attr(attr, 0, key)
