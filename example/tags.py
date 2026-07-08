@@ -2,8 +2,8 @@
 # All rights reserved
 
 # example/tags.py
-from src.server.tag_specs import tag_registry
-from src.server.device import actions
+from src.ethernetip_emulator.server.tag_specs import tag_registry
+from src.ethernetip_emulator.server.device import actions
 
 @tag_registry.register
 def _tags():

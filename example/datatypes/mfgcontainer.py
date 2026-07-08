@@ -4,12 +4,12 @@
 # src/server/datatype/mfgcontainer.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Tuple, override
-from src.server.datatypes.templates import Basic
-from src.server.tag_specs import tag_registry
-from src.server.device import actions
+from src.ethernetip_emulator.server.datatypes.templates import Basic
+from src.ethernetip_emulator.server.tag_specs import tag_registry
+from src.ethernetip_emulator.server.device import actions
 
 if TYPE_CHECKING:
-    from src.server.actions import AttributeActions
+    from src.ethernetip_emulator.server.actions import AttributeActions
 
 
 @actions.datatype

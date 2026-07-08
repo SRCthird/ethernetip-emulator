@@ -4,7 +4,7 @@
 # scope/actions.py
 from time import sleep
 
-from src.server.device import actions
+from src.ethernetip_emulator.server.device import actions
 
 @actions.string.on_change("I_TEXT")
 def handle_i_text(attr, key, value) -> None:
