@@ -1,12 +1,12 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# example/tags.py
+# example/basic_datatypes/tags.py
 from src.ethernetip_emulator.server.tag_specs import tag_registry
 from src.ethernetip_emulator.server.device import actions
 
 @tag_registry.register
-def _tags():
+def _():
     return [
         # (tag_name,          type_spec(default))
         ("I_TEXT",            actions.type.STRING("")),
@@ -77,39 +77,4 @@ def _tags():
         ("O_Updates",         actions.type.COUNTER(1000)),
         ("O_Timer",           actions.type.TIMER(5000)),
         ("O_String",          actions.type.STRING("HELLO")),
-
-        # Custom composite type
-        ("O_Container",       actions.type.MFGCONTAINER((
-            "1011", "LOT001", "CONT001"
-        ))),
-
     ]
-
-# GPIO Tag
-try:
-    import OPi.GPIO as GPIO
-    @tag_registry.register
-    def _opi_tags():
-        return [
-            ("GPIO_18",           actions.type.GPIO((
-                "PH04", False, "out"
-            ))),
-            ("GPIO_40",           actions.type.GPIO((
-                "PI03", True, "in"
-            ))),
-        ]
-except ImportError:
-    try:
-        import RPi.GPIO as GPIO
-        @tag_registry.register
-        def _rpi_tags():
-            return [
-                ("GPIO_18",           actions.type.GPIO((
-                    18, False, "out"
-                ))),
-                ("GPIO_40",           actions.type.GPIO((
-                    40, True, "in"
-                ))),
-            ]
-    except ImportError:
-        pass

@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# scope/actions.py
+# example/basic_datatypes/actions.py
 from time import sleep
 
 from src.ethernetip_emulator.server.device import actions
@@ -42,20 +42,3 @@ def handle_bool(attr, key, value) -> None:
     if value[0] is False:
         actions.boolarray.set_val("O_BoolArray", slice(0,4), [False,True,False,True])
         print(actions.boolarray.get_val("O_BoolArray", slice(0,4)))
-
-def pi_actions():
-    actions.gpio.start_polling("GPIO_40")
-    @actions.gpio.on_change("GPIO_40")
-    def handle_button(attr, key, value):
-        actions.gpio.write_pin("GPIO_18", attr, key, not value)
-
-try:
-    import RPi.GPIO as GPIO
-    pi_actions()
-except ImportError:
-    pass
-try:
-    import OPi.GPIO as GPIO
-    pi_actions()
-except ImportError:
-    pass

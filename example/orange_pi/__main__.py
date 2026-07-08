@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# example/__main__.py
+# example/orange_pi/__main__.py
 from cpppo.server.enip.main import main as enip_main
 
 from src.ethernetip_emulator.server.device import AttributeDevice

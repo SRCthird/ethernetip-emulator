@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/datatype/mfgcontainer.py
+# example/mfg_line/datatype/mfgcontainer.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Tuple, override
 from src.ethernetip_emulator.server.datatypes.templates import Basic
