@@ -206,12 +206,12 @@ class AttributeActions:
 
     @overload
     def on_change(
-        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: Any | None = ...
+        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: Any | None = ..., defer = ...
     ) -> "AttributeActions": ...
 
     @overload
     def on_change(
-        self, tag_name: str, callback: None = ..., *, key: Any | None = ...
+        self, tag_name: str, callback: None = ..., *, key: Any | None = ..., defer= ...
     ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
 
     def on_change(
@@ -220,10 +220,20 @@ class AttributeActions:
         callback: Callable[[Any, Any, Any], None] | None = None,
         *,
         key: Any | None = None,
+        defer: bool = False,
     ) -> "AttributeActions | Callable":
+        def _wrap(fn: Callable) -> Callable:
+            if not defer:
+                return fn
+            def deferred(attr, k, value):
+                t = self._thread_factory(target=lambda: fn(attr, k, value), daemon=True)
+                t.start()
+            deferred.__name__ = getattr(fn, "__name__", "deferred")
+            return deferred
+
         def _register(fn: Callable) -> None:
             with self._listener_lock:
-                self._listeners.setdefault(tag_name, []).append((fn, key))
+                self._listeners.setdefault(tag_name, []).append((_wrap(fn), key))
 
         if callback is not None:
             _register(callback)
