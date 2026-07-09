@@ -3,7 +3,6 @@
 
 # example/basic_datatypes/__init__.py
 from example.basic_datatypes import actions
-from example.basic_datatypes import datatypes
 from example.basic_datatypes import tags
 
-__all__ = ["actions", "datatypes", "tags"]
+__all__ = ["actions", "tags"]
