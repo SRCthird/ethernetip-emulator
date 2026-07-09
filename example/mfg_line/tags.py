@@ -13,6 +13,7 @@ def _inputTags():
         ("I_SerialNumber", actions.type.UINT((0))),
 
         ("I_ProcessUnit", actions.type.BOOL((False))),
+        ("I_ClearLine", actions.type.BOOL((False))),
     ]
 
 @tag_registry.register

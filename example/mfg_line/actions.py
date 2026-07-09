@@ -15,10 +15,22 @@ def unit_loaded(attr, value, key) -> None:
         return
     if ln == "" or cn == "":
         return
-    if value[0] == 1:
-        actions.mfgcontainer.set_container("O_Container", value[0], ln, cn, key=key)
+    if actions.mfgcontainer.is_empty("O_Container"):
+        actions.mfgcontainer.set_container("O_Container", value[0], ln, cn)
     else:
-        actions.mfgcontainer.set_sn("O_Container", value[0], key)
+        actions.mfgcontainer.set_sn("O_Container", value[0])
+
+@actions.bool.on_change("I_ClearLine", defer=True)
+def clear_line(attr, value, key) -> None:
+    if not value[0]:
+        return
+    actions.mfgcontainer.clear("O_Container")
+    actions.uintarray.clear("O_Passed")
+    actions.uintarray.clear("O_Failed")
+    actions.string.set_val("I_LotNumber", "")
+    actions.string.set_val("I_CatalogNumber", "")
+    actions.uint.set_val("I_SerialNumber", 0)
+    actions.bool.set_val("I_ClearLine", False)
 
 @actions.bool.on_change("I_ProcessUnit", defer=True)
 def process_unit(attr, value, key) -> None:
@@ -34,6 +46,9 @@ def process_unit(attr, value, key) -> None:
         return
     if sn == 0 or ln == "" or cn == "":
         print("Container values must not be empty")
+        return
+    if actions.uintarray.is_full("O_Failed") or actions.uintarray.is_full("O_Passed"):
+        print("Line is full, please clear before processing next part")
         return
     if not process_steps():
         print("Unit failed")

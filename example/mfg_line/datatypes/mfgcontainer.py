@@ -71,13 +71,13 @@ class MFGContainer:
             name_prefix = tag_name[: -len(".DATA")]
             actions.string._len_helper(name_prefix, key, value)
 
-    def clear_container(self, name_prefix: str, key: slice | None = slice(0, 1, None)):
+    def clear(self, name_prefix: str, key: slice | None = slice(0, 1)):
         self.set_sn(name_prefix, 0, key)
         self.set_ln(name_prefix, "", key)
         self.set_cn(name_prefix, "", key)
         self.set_flt(name_prefix, False, key)
 
-    def set_container(self, name_prefix: str, sn: int, ln: str, cn: str, flt: bool = False, key: slice | None = slice(0, 1, None)):
+    def set_container(self, name_prefix: str, sn: int, ln: str, cn: str, flt: bool = False, key: slice | None = slice(0, 1)):
         self.set_sn(name_prefix, sn, key)
         self.set_ln(name_prefix, ln, key)
         self.set_cn(name_prefix, cn, key)
@@ -92,32 +92,38 @@ class MFGContainer:
             self.get_flt(name_prefix, key),
         )
 
+    def is_empty(self, name_prefix, key: slice | None = None) -> bool:
+        return self.get_sn(name_prefix, key) == 0 and \
+            self.get_ln(name_prefix, key) == "" and \
+            self.get_cn(name_prefix, key) == ""
+
+
     def get_sn(self, name_prefix: str, key: slice | None = slice(0, 1, None)) -> int:
-        return actions.uint.get_val(f"{name_prefix}.SN", key)[0]
+        return actions.uint.get_val(f"{name_prefix}.SN", key)
 
     def set_sn(self, name_prefix: str, value: int, key: slice | None = slice(0, 1, None)):
         return actions.uint.set_val(f"{name_prefix}.SN", value, key)
 
     def get_ssn(self, name_prefix: str, key: slice | None = slice(0, 1, None)) -> str:
-        return actions.string.get_val(f"{name_prefix}.SSN", key)[0]
+        return actions.string.get_val(f"{name_prefix}.SSN", key)
 
     def _set_ssn(self, name_prefix: str, value: str, key: slice | None = slice(0, 1, None)):
         return actions.string.set_val(f"{name_prefix}.SSN", value, key)
 
     def get_ln(self, name_prefix: str, key: slice | None = slice(0, 1, None)) -> str:
-        return actions.string.get_val(f"{name_prefix}.LN", key)[0]
+        return actions.string.get_val(f"{name_prefix}.LN", key)
 
     def set_ln(self, name_prefix: str, value: str, key: slice | None = slice(0, 1, None)):
         return actions.string.set_val(f"{name_prefix}.LN", value, key)
 
     def get_cn(self, name_prefix: str, key: slice | None = slice(0, 1, None)) -> str:
-        return actions.string.get_val(f"{name_prefix}.CN", key)[0]
+        return actions.string.get_val(f"{name_prefix}.CN", key)
 
     def set_cn(self, name_prefix: str, value: str, key: slice | None = slice(0, 1, None)):
         return actions.string.set_val(f"{name_prefix}.CN", value, key)
 
     def get_flt(self, name_prefix: str, key: slice | None = slice(0, 1, None)) -> bool:
-        return actions.bool.get_val(f"{name_prefix}.FLT", key)[0]
+        return actions.bool.get_val(f"{name_prefix}.FLT", key)
 
     def set_flt(self, name_prefix: str, value: bool, key: slice | None = slice(0, 1, None)):
         return actions.bool.set_val(f"{name_prefix}.FLT", value, key)
