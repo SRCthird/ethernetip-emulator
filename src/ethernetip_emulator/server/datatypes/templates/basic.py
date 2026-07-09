@@ -24,7 +24,7 @@ class Basic:
             return None
         if key is None:
             key = slice(0, len(data_tag))
-        return data_tag[key]
+        return data_tag[key][0]
 
     def set_val(self, name_prefix: str, value: Any, key: slice | None = None):
         data_tag = self.parent._lookup(name_prefix)
