@@ -10,17 +10,6 @@ from src.ethernetip_emulator.server.actions import AttributeActions
 
 
 class AttributeDevice(device.Attribute):
-    """
-    Extension of cpppo.server.enip.device.Attribute with:
-
-    - A shared registry of AttributeDevice instances, keyed by tag name.
-    - A shared AttributeActions instance to handle side-effect logic.
-    - Automatic application of default values from tag_registry.
-
-    _defaults is built lazily on first construction so that all
-    @registry.register decorators in every imported module have already
-    run by the time the mapping is frozen.
-    """
     registry: Dict[str, "AttributeDevice"] = {}
     _actions: AttributeActions = AttributeActions()
     _defaults: Optional[Mapping[str, Any]] = None
@@ -53,11 +42,13 @@ class AttributeDevice(device.Attribute):
         self._registry[name] = self
 
     def _apply_default(self, name: str, kwargs: Dict[str, Any]) -> None:
-        if self._defaults is not None and name not in self._defaults:
+        if self._defaults is None:
+            return
+        if name not in self._defaults:
             return
 
         configured_default = kwargs.get("default")
-        value = self._defaults[name] if self._defaults is not None else None
+        value = self._defaults[name]
 
         if isinstance(value, list):
             if isinstance(configured_default, list) and configured_default:
@@ -83,6 +74,6 @@ class AttributeDevice(device.Attribute):
     @classmethod
     def reset_defaults(cls) -> None:
         cls._defaults = None
+        cls.registry.clear()
 
-# Singleton
 actions = AttributeDevice._actions
