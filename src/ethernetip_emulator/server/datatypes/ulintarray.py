@@ -4,7 +4,7 @@
 # src/server/datatypes/ulintarray.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
-from src.ethernetip_emulator.server.datatypes.templates import Basic
+from src.ethernetip_emulator.server.datatypes import templates
 from src.ethernetip_emulator.server.device import actions
 from src.ethernetip_emulator.server.actions import TypeSpec
 from src.ethernetip_emulator.server.tag_specs import tag_registry
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from src.ethernetip_emulator.server.actions import AttributeActions
 
 @actions.datatype
-class UlintArray(Basic):
+class UlintArray(templates.NumericArray):
     def __init__(self, parent: AttributeActions):
         super().__init__(parent)
 
