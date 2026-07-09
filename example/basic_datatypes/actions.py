@@ -33,3 +33,12 @@ def handle_timer_done(attr, key, value) -> None:
 def handle_bool(attr, key, value) -> None:
     if value[0]:
         actions.bool.set_val("O_BOOL", False)
+        
+        print(actions.boolarray.get_val("O_BoolArray"))
+        actions.boolarray.set_val("O_BoolArray", [0,0,0,0])
+        print(f"Size of boolarray: {actions.boolarray.size('O_BoolArray')}")
+        actions.boolarray.toggle_bit("O_BoolArray", 0)
+        actions.boolarray.append("O_BoolArray", 1)
+        actions.boolarray.prepend("O_BoolArray", 1)
+        print(f"Final list: {actions.boolarray.get_val('O_BoolArray')}")
+        actions.boolarray.clear("O_BoolArray")
