@@ -49,12 +49,9 @@ class String(Basic):
     
     @override
     def set_val(self, name_prefix: str, value: str, key: slice | None = None):
-        data_tag = self.parent._lookup(f"{name_prefix}.DATA")
-        if data_tag is None:
-            return
         try:
-            data_tag[key] = value if isinstance(value, list) else [value]
-        except Exception as e:
+            super().set_val(f"{name_prefix}.DATA", value, key)
+        except TypeError as e:
             pass
         self._len_helper(name_prefix, value, key)
 
