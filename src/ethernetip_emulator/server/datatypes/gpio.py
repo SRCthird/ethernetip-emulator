@@ -201,4 +201,4 @@ except ImportError:
 
         @staticmethod
         def type_validator(_: Any) -> int:
-            raise TypeError(f"GPIO is not a usable. Neither RPi.GPIO nor OPi.GPIO is installed")
+            raise TypeError(f"GPIO is not a usable datatype. Neither RPi.GPIO nor OPi.GPIO is installed")
