@@ -37,8 +37,8 @@ class String(Basic):
             self._len_helper(name_prefix, key, value)
 
     @override
-    def on_change(self, name_prefix: str, callback=None, *, key=None):
-        return self.parent.on_change(f"{name_prefix}.DATA", callback, key=key)
+    def on_change(self, name_prefix: str, callback=None, *, key=None, defer=False):
+        return self.parent.on_change(f"{name_prefix}.DATA", callback, key=key, defer=defer)
 
     @override
     def get_val(self, name_prefix: str, key: Any):
@@ -48,7 +48,7 @@ class String(Basic):
         return data_tag[key]
     
     @override
-    def set_val(self, name_prefix: str, key: Any, value: str):
+    def set_val(self, name_prefix: str, value: str, key: slice | None = slice(0,1)):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
             return
