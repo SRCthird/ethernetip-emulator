@@ -61,28 +61,24 @@ class Timer:
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         pass
 
-    def get_preset(self, tag_prefix: str, key: Any):
-        data_tag = self.parent._lookup(f"{tag_prefix}.PRE")
-        if data_tag is None:
-            return None
-        return data_tag[key]
+    def get_preset(self, tag_prefix: str, key: slice | None = slice(0,1)):
+        return actions.dint.get_val(f"{tag_prefix}.PRE", key)
 
-    def set_preset(self, tag_prefix: str, key: Any, value: int):
-        attr = self.parent._lookup(f"{tag_prefix}.PRE")
-        if attr:
-            self.parent._write_attr(attr, key, value)
+    def set_preset(self, tag_prefix: str, value: int, key: slice | None = slice(0,1)):
+        actions.dint.set_val(f"{tag_prefix}.PRE", value, key)
 
-    def get_accumulator(self, tag_prefix: str, key: Any):
-        data_tag = self.parent._lookup(f"{tag_prefix}.ACC")
-        if data_tag is None:
-            return None
-        return data_tag[key]
+    def get_accumulator(self, tag_prefix: str, key: slice | None = slice(0,1)):
+        return actions.dint.get_val(f"{tag_prefix}.ACC", key)
+
+    def set_accumulator(self, tag_prefix: str, value: int, key: slice | None = slice(0,1)):
+        actions.dint.set_val(f"{tag_prefix}.ACC", value, key)
 
     def is_enabled(
         self,
         tag_prefix: str,
         *,
         key: Any = 0,
+        defer = False,
     ) -> TimerIsEnabled:
         tag = f"{tag_prefix}.EN"
 
@@ -90,7 +86,7 @@ class Timer:
         value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
 
         def register_fn(fn: Callable) -> None:
-            self.parent.on_change(tag, fn)
+            self.parent.on_change(tag, fn, defer=defer)
 
         return TimerIsEnabled(value, register_fn)
 
@@ -98,15 +94,13 @@ class Timer:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        defer = False,
     ) -> TimerIsDone:
         tag = f"{tag_prefix}.DN"
-
-        attr = self.parent._lookup(tag)
-        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+        value = bool(actions.bool.get_val(tag))
 
         def register_fn(fn: Callable) -> None:
-            self.parent.on_change(tag, fn)
+            self.parent.on_change(tag, fn, defer=defer)
 
         return TimerIsDone(value, register_fn)
 
@@ -115,6 +109,7 @@ class Timer:
         tag_prefix: str,
         *,
         key: Any = 0,
+        defer = False,
     ) -> TimerIsTiming:
         tag = f"{tag_prefix}.TT"
 
@@ -122,7 +117,7 @@ class Timer:
         value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
 
         def register_fn(fn: Callable) -> None:
-            self.parent.on_change(tag, fn)
+            self.parent.on_change(tag, fn, defer=defer)
 
         return TimerIsTiming(value, register_fn)
 
