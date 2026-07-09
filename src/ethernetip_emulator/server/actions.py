@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions.py
+# src/ethernetip_emulator/server/actions.py
 from __future__ import annotations
 
 import threading
@@ -11,22 +11,21 @@ from typing import Any, Callable, overload, Type
 
 
 class TypeSpec:
-    """
-    A validated type descriptor returned by ``actions.type.<TYPE>(default)``.
-
-    Validates *default* against the validator held by *namespace* at
-    construction time.  Supports two-element unpacking::
-
-        type_name, default = TypeSpec("INT", 0)
-    """
-
     __slots__ = ("type_name", "default")
 
     def __init__(self, type_name: str, default: Any, namespace: "TypeNamespace | None" = None) -> None:
         key = type_name.upper()
         validator = namespace._types.get(key) if namespace is not None else None
         self.type_name: str = key
-        self.default: Any = validator(default) if validator is not None else default
+        if validator is not None:
+            try:
+                self.default: Any = validator(default)
+            except Exception as exc:
+                raise ValueError(
+                    f"TypeSpec: validator for {key!r} rejected default {default!r}: {exc}"
+                ) from exc
+        else:
+            self.default: Any = default
 
     def __iter__(self):
         yield self.type_name
@@ -41,21 +40,13 @@ class TypeSpec:
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash((self.type_name, self.default))
+        try:
+            return hash((self.type_name, self.default))
+        except TypeError:
+            return hash((self.type_name, id(self.default)))
 
 
 class TypeNamespace:
-    """
-    Exposes every registered PLC type as a callable factory::
-
-        actions.type.INT(0)      # -> TypeSpec('INT', 0)
-        actions.type.SSTRING("") # -> TypeSpec('SSTRING', '')
-
-    Types are registered exclusively via :meth:`register_type`, called
-    automatically by ``AttributeActions.register_datatype`` when a datatype
-    class is decorated with ``@actions.datatype``.
-    """
-
     def __init__(self) -> None:
         self._types: dict[str, Callable[[Any], Any] | None] = {}
 
@@ -227,6 +218,7 @@ class AttributeActions:
                 return fn
             def deferred(attr, k, value):
                 t = self._thread_factory(target=lambda: fn(attr, k, value), daemon=True)
+                self._threads.append(t)
                 t.start()
             deferred.__name__ = getattr(fn, "__name__", "deferred")
             return deferred
@@ -263,7 +255,8 @@ class AttributeActions:
 
     def stop(self) -> None:
         self._stop.set()
-        self._listeners.clear()
+        if self._entered:
+            self._listeners.clear()
 
     def join(self, timeout: float | None = None) -> None:
         for t in self._threads:
@@ -286,5 +279,12 @@ class AttributeActions:
                 hook = getattr(dt, "on_set_hook", None)
                 if hook is not None:
                     hook(tag_name, attr, key, value)
+
+        if origin_type is None and tag_name not in self._listeners:
+            self._logger(
+                f"AttributeActions.on_set: tag {tag_name!r} not in registry "
+                f"and has no listeners — skipping."
+            )
+            return
 
         self._fire_listeners(tag_name, attr, key, value)
