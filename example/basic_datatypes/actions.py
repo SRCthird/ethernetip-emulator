@@ -23,11 +23,11 @@ def handle_i_text(attr, key, value) -> None:
 
 @actions.timer.is_done("O_Timer")
 def handle_timer_done(attr, key, value) -> None:
-    if not value:
+    if not value[0]:
         return
     actions.bool.set_val("O_Timer.EN", False)
 
-# actions.increment.start(tag_name="O_INCR", start=32_757, wrap=actions.int.MAX)
+actions.increment.start(tag_name="O_INCR", start=32_757, wrap=actions.int.MAX)
 
 @actions.bool.on_change("O_BOOL", defer=True)
 def handle_bool(attr, key, value) -> None:
