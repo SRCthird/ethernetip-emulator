@@ -237,6 +237,7 @@ class AttributeActions:
 
         return decorator
 
+
     def remove_listeners(self, tag_name: str) -> "AttributeActions":
         with self._listener_lock:
             self._listeners.pop(tag_name, None)
@@ -249,7 +250,7 @@ class AttributeActions:
             if key_filter is not None and key_filter != key:
                 continue
             try:
-                callback(attr, key, value)
+                callback(attr, value, key)
             except Exception as exc:
                 self._logger(f"AttributeActions: listener error for {tag_name}: {exc}")
 
@@ -278,7 +279,7 @@ class AttributeActions:
             if dt is not None:
                 hook = getattr(dt, "on_set_hook", None)
                 if hook is not None:
-                    hook(tag_name, attr, key, value)
+                    hook(tag_name, attr, value, key)
 
         if origin_type is None and tag_name not in self._listeners:
             self._logger(

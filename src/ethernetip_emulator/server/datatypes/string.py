@@ -31,7 +31,7 @@ class String(Basic):
         ]
 
     @override
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
         if tag_name.endswith(".DATA"):
             name_prefix = tag_name[: -len(".DATA")]
             self._len_helper(name_prefix, value, key)

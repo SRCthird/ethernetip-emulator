@@ -30,4 +30,6 @@ class Basic:
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
+        if key is None:
+            key = slice(0, len(data_tag))
         data_tag[key] = value if isinstance(value, list) else [value]

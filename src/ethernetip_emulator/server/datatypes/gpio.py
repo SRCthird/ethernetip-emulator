@@ -96,7 +96,7 @@ try:
                 (f"{name}.SETUP", actions.type.BOOL(False)),
             ]
 
-        def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+        def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
             if not tag_name.endswith(".VALUE"):
                 return
             name_prefix = tag_name[: -len(".VALUE")]
@@ -161,7 +161,7 @@ try:
             def _launch() -> None:
                 self.parent._start_worker(
                     f"gpio.poll.{name_prefix}",
-                    lambda: self._poll_pin(name_prefix, key, period),
+                    lambda: self._poll_pin(name_prefix, period, key),
                 )
 
             if self.parent._entered:

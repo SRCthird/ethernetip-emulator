@@ -69,7 +69,7 @@ class Timer:
             (f"{name}.DN",  actions.type.BOOL(False)),
         ]
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, value: Any, key: slice | None = None) -> None:
         pass
 
     def get_preset(self, tag_prefix: str, key: slice | None = slice(0, 1)):

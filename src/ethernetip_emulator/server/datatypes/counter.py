@@ -128,6 +128,7 @@ class Counter:
         key: slice,
         preset: int | None,
         initial_delay: float,
+        key: slice | None = None,
         enable: str | Callable[[], bool] | None = None,
     ) -> None:
         acc_tag = f"{tag_prefix}.ACC"

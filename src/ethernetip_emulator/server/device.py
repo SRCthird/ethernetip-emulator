@@ -69,7 +69,7 @@ class AttributeDevice(device.Attribute):
 
     def __setitem__(self, key: Any, value: Any) -> None:
         super().__setitem__(key, value)
-        self._actions.on_set(self, key, value)
+        self._actions.on_set(self, value, key)
 
     @classmethod
     def reset_defaults(cls) -> None:
