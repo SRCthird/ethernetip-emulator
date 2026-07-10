@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/datatypes/templates/boolarray.py
+# src/ethernetip_emulator/server/datatypes/templates/boolarray.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List
 
@@ -12,11 +12,15 @@ class BoolArray:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: List[Any]) -> None:
         pass
 
     def on_change(self, name_prefix: str, callback=None, *, key=None, defer=False):
-        return self.parent.on_change(name_prefix, callback, key=key, defer=defer)
+        if key is None:
+            new_key = self._full_slice(name_prefix) or slice(0,1)
+        else:
+            new_key = key
+        return self.parent.on_change(name_prefix, callback, key=new_key, defer=defer)
 
     def get_val(self, name_prefix: str, key: slice | None = None) -> List[bool]:
         key = key or self._full_slice(name_prefix)
