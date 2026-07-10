@@ -36,6 +36,7 @@ try:
                 self._gpio.BOARD if self._platform == "RPi" else self._gpio.SUNXI
             )
             self._pins: dict[str, Any] = {}
+            self._pwm_instances: dict[str, Any] = {}
 
         @staticmethod
         def type_validator(v: Any) -> Tuple[Any, bool | float, str]:
@@ -109,8 +110,13 @@ try:
             mode = mode_tag[0] if isinstance(mode_tag[0], str) else None
             if mode == "out":
                 self._gpio.output(pin, bool(value[0] if isinstance(value, list) else value))
+            elif mode == "pwm":
+                pwm = self._pwm_instances.get(name_prefix)
+                if pwm is not None:
+                    duty = float(value[0] if isinstance(value, list) else value)
+                    pwm.ChangeDutyCycle(max(0.0, min(100.0, duty)))
 
-        def on_change(self, name_prefix: str, callback=None, *, key=slice(0,1)):
+        def on_change(self, name_prefix: str, callback=None, *, key=slice(0, 1)):
             return self.parent.on_change(f"{name_prefix}.VALUE", callback, key=key)
 
         def setup(self, name_prefix: str) -> None:
@@ -137,6 +143,12 @@ try:
             if gpio_mode is None:
                 return
             self._gpio.setup(pin, gpio_mode)
+            if mode == "pwm":
+                value_tag = self.parent._lookup(f"{name_prefix}.VALUE")
+                initial_duty = float(value_tag[0]) if value_tag is not None else 0.0
+                pwm = self._gpio.PWM(pin, 1000)
+                pwm.start(max(0.0, min(100.0, initial_duty)))
+                self._pwm_instances[name_prefix] = pwm
             setup_tag[0] = True
 
         def start_polling(
@@ -144,7 +156,7 @@ try:
             name_prefix: str,
             *,
             period: float = 0.01,
-            key: Any = 0,
+            key: slice = slice(0, 1),
         ) -> "AttributeActions":
             def _launch() -> None:
                 self.parent._start_worker(
@@ -159,7 +171,7 @@ try:
 
             return self.parent
 
-        def _poll_pin(self, name_prefix: str, key: Any, period: float) -> None:
+        def _poll_pin(self, name_prefix: str, key: slice, period: float) -> None:
             self.setup(name_prefix)
             pin = self._pins.get(name_prefix)
             last = None
@@ -173,10 +185,9 @@ try:
                 if current != last:
                     value_tag = self.parent._lookup(f"{name_prefix}.VALUE")
                     if value_tag is not None:
-                        value_tag[key] = int(current)
+                        self.parent._write_attr(value_tag, key, [int(current)])
                     last = current
                 self.parent._sleep(period)
-
 
         def read_pin(self, tag_name: str) -> bool:
             pin = self._pins.get(tag_name)
@@ -184,13 +195,23 @@ try:
                 return False
             return bool(self._gpio.input(pin))
 
-        def write_pin(self, name_prefix: str, attr, key: Any, value: str):
-            data_tag = self.parent._lookup(f"{name_prefix}.VALUE")
-            if data_tag is None:
+        def write_pin(self, name_prefix: str, attr: Any, key: slice, value: Any) -> None:
+            if attr is None:
                 return
-            data_tag[key] = value
+            self.parent._write_attr(attr, key, [value])
 
-        def __exit__(self) -> None:
+        def __exit__(
+            self,
+            exc_type: type | None,
+            exc_val: BaseException | None,
+            exc_tb: Any | None,
+        ) -> None:
+            for pwm in self._pwm_instances.values():
+                try:
+                    pwm.stop()
+                except Exception:
+                    pass
+            self._pwm_instances.clear()
             self._gpio.cleanup()
             self._pins.clear()
 
