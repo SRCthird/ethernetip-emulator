@@ -110,7 +110,7 @@ try:
             if mode == "out":
                 self._gpio.output(pin, bool(value[0] if isinstance(value, list) else value))
 
-        def on_change(self, name_prefix: str, callback=None, *, key=None):
+        def on_change(self, name_prefix: str, callback=None, *, key=slice(0,1)):
             return self.parent.on_change(f"{name_prefix}.VALUE", callback, key=key)
 
         def setup(self, name_prefix: str) -> None:
@@ -193,6 +193,7 @@ try:
         def __exit__(self) -> None:
             self._gpio.cleanup()
             self._pins.clear()
+
 except ImportError:
     @actions.datatype
     class Gpio:
