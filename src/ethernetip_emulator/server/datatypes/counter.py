@@ -19,8 +19,19 @@ class CounterIsDoingSomething:
         return self._value
 
     def __call__(
-        self, fn: Callable[[Any, Any, Any], None]
+        self,
+        fn: Callable[[Any, Any, Any], None],
+        *,
+        rising_edge: bool = True,
     ) -> Callable[[Any, Any, Any], None]:
+        if rising_edge:
+            def _guarded(attr: Any, key: slice, value: Any) -> None:
+                if not value[0]:
+                    return
+                fn(attr, key, value)
+            _guarded.__name__ = getattr(fn, "__name__", "_guarded")
+            self._register_fn(_guarded)
+            return fn
         self._register_fn(fn)
         return fn
 
@@ -55,7 +66,7 @@ class Counter:
             (f"{name}.RES", actions.type.BOOL(False)),
         ]
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: Any) -> None:
         if tag_name.endswith(".RES"):
             name_prefix = tag_name[: -len(".RES")]
             self.reset(name_prefix, key=key)
@@ -64,32 +75,27 @@ class Counter:
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        defer=False,
     ) -> CounterIsDone:
         tag = f"{tag_prefix}.DN"
-
-        attr = self.parent._lookup(tag)
-        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+        value = bool(actions.bool.get_val(tag))
 
         def register_fn(fn: Callable) -> None:
-            self.parent.on_change(tag, fn)
+            self.parent.on_change(tag, fn, defer=defer)
 
         return CounterIsDone(value, register_fn)
-
 
     def is_reset(
         self,
         tag_prefix: str,
         *,
-        key: Any = 0,
+        defer=False,
     ) -> CounterIsReset:
         tag = f"{tag_prefix}.RES"
-
-        attr = self.parent._lookup(tag)
-        value = bool(self.parent._read_attr(attr, key)) if attr is not None else False
+        value = bool(actions.bool.get_val(tag))
 
         def register_fn(fn: Callable) -> None:
-            self.parent.on_change(tag, fn)
+            self.parent.on_change(tag, fn, defer=defer)
 
         return CounterIsReset(value, register_fn)
 
@@ -98,7 +104,7 @@ class Counter:
         tag_prefix: str,
         *,
         period: float = 1.0,
-        key: Any = 0,
+        key: slice = slice(0, 1),
         preset: int | None = None,
         initial_delay: float = 1.0,
         enable: str | Callable[[], bool] | None = None,
@@ -119,7 +125,7 @@ class Counter:
         *,
         tag_prefix: str,
         period: float,
-        key: Any,
+        key: slice,
         preset: int | None,
         initial_delay: float,
         enable: str | Callable[[], bool] | None = None,
@@ -136,14 +142,15 @@ class Counter:
         if preset is not None:
             pre_attr = self.parent._lookup(pre_tag)
             if pre_attr is not None:
-                self.parent._write_attr(pre_attr, key, preset)
+                self.parent._write_attr(pre_attr, key, [preset])
 
         cu_attr = self.parent._lookup(cu_tag)
         if cu_attr is not None:
-            self.parent._write_attr(cu_attr, key, 1)
+            self.parent._write_attr(cu_attr, key, [1])
 
         acc_attr = self.parent._lookup(acc_tag)
-        acc: int = self.parent._read_attr( acc_attr, key ) or 0
+        raw = self.parent._read_attr(acc_attr, key) if acc_attr is not None else None
+        acc: int = int(raw[0]) if raw is not None else 0
 
         while not self.parent._stop.is_set():
             acc_attr = self.parent._lookup(acc_tag)
@@ -155,14 +162,16 @@ class Counter:
                 self.parent._sleep(period)
                 continue
 
-            pre: int = self.parent._read_attr(pre_attr, key) or 0
+            pre_raw = self.parent._read_attr(pre_attr, key)
+            pre: int = int(pre_raw[0]) if pre_raw is not None else 0
 
             if enable is not None:
                 if callable(enable):
                     gate_open = bool(enable())
                 else:
                     gate_attr = self.parent._lookup(enable)
-                    gate_open = bool(self.parent._read_attr(gate_attr, key)) if gate_attr is not None else False
+                    raw = self.parent._read_attr(gate_attr, key) if gate_attr is not None else None
+                    gate_open = bool(raw[0]) if raw is not None else False
 
                 if not gate_open:
                     self.parent._sleep(period)
@@ -170,35 +179,34 @@ class Counter:
 
             if acc >= actions.dint.MAX:
                 if ov_attr is not None:
-                    self.parent._write_attr(ov_attr, key, 1)
+                    self.parent._write_attr(ov_attr, key, [1])
                 acc = 0
-                self.parent._write_attr(acc_attr, key, acc)
+                self.parent._write_attr(acc_attr, key, [acc])
                 self.parent._sleep(period)
                 if ov_attr is not None:
-                    self.parent._write_attr(ov_attr, key, 0)
+                    self.parent._write_attr(ov_attr, key, [0])
                 continue
 
             acc += 1
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, key, [acc])
 
             if pre > 0 and acc >= pre:
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 1)
+                    self.parent._write_attr(dn_attr, key, [1])
                 self.parent._sleep(period)
                 acc = 0
-                self.parent._write_attr(acc_attr, key, acc)
+                self.parent._write_attr(acc_attr, key, [acc])
                 if dn_attr is not None:
-                    self.parent._write_attr(dn_attr, key, 0)
+                    self.parent._write_attr(dn_attr, key, [0])
                 continue
 
             self.parent._sleep(period)
 
         cu_attr = self.parent._lookup(cu_tag)
         if cu_attr is not None:
-            self.parent._write_attr(cu_attr, key, 0)
+            self.parent._write_attr(cu_attr, key, [0])
 
-
-    def increment(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def increment(self, tag_prefix: str, *, key: slice = slice(0, 1)) -> None:
         acc_attr = self.parent._lookup(f"{tag_prefix}.ACC")
         pre_attr = self.parent._lookup(f"{tag_prefix}.PRE")
         dn_attr  = self.parent._lookup(f"{tag_prefix}.DN")
@@ -208,27 +216,29 @@ class Counter:
             self.parent._logger(f"AttributeActions.counter_increment: essential tags missing for {tag_prefix}")
             return
 
-        acc = self.parent._read_attr(acc_attr, key) or 0
-        pre = self.parent._read_attr(pre_attr, key) or 0
+        acc_raw = self.parent._read_attr(acc_attr, key)
+        acc = int(acc_raw[0]) if acc_raw is not None else 0
+        pre_raw = self.parent._read_attr(pre_attr, key)
+        pre = int(pre_raw[0]) if pre_raw is not None else 0
 
         if acc >= actions.dint.MAX:
             if ov_attr is not None:
-                self.parent._write_attr(ov_attr, key, 1)
+                self.parent._write_attr(ov_attr, key, [1])
             acc = 0
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, key, [acc])
             return
 
         acc += 1
-        self.parent._write_attr(acc_attr, key, acc)
+        self.parent._write_attr(acc_attr, key, [acc])
 
         if ov_attr is not None:
-            self.parent._write_attr(ov_attr, key, 0)
+            self.parent._write_attr(ov_attr, key, [0])
 
         if pre > 0 and acc >= pre:
             if dn_attr is not None:
-                self.parent._write_attr(dn_attr, key, 1)
+                self.parent._write_attr(dn_attr, key, [1])
 
-    def decrement(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def decrement(self, tag_prefix: str, *, key: slice = slice(0, 1)) -> None:
         acc_attr = self.parent._lookup(f"{tag_prefix}.ACC")
         pre_attr = self.parent._lookup(f"{tag_prefix}.PRE")
         dn_attr  = self.parent._lookup(f"{tag_prefix}.DN")
@@ -238,26 +248,28 @@ class Counter:
             self.parent._logger(f"AttributeActions.counter.decrement: ACC tag missing for {tag_prefix}")
             return
 
-        acc = self.parent._read_attr(acc_attr, key) or 0
-        pre = self.parent._read_attr(pre_attr, key) or 0 if pre_attr is not None else 0
+        acc_raw = self.parent._read_attr(acc_attr, key)
+        acc = int(acc_raw[0]) if acc_raw is not None else 0
+        pre_raw = self.parent._read_attr(pre_attr, key) if pre_attr is not None else None
+        pre = int(pre_raw[0]) if pre_raw is not None else 0
 
         if acc <= actions.dint.MIN:
             if un_attr is not None:
-                self.parent._write_attr(un_attr, key, 1)
+                self.parent._write_attr(un_attr, key, [1])
             acc = 0
-            self.parent._write_attr(acc_attr, key, acc)
+            self.parent._write_attr(acc_attr, key, [acc])
             return
 
         acc -= 1
-        self.parent._write_attr(acc_attr, key, acc)
+        self.parent._write_attr(acc_attr, key, [acc])
 
         if un_attr is not None:
-            self.parent._write_attr(un_attr, key, 0)
+            self.parent._write_attr(un_attr, key, [0])
 
         if dn_attr is not None and pre > 0 and acc < pre:
-            self.parent._write_attr(dn_attr, key, 0)
+            self.parent._write_attr(dn_attr, key, [0])
 
-    def reset(self, tag_prefix: str, *, key: Any = 0) -> None:
+    def reset(self, tag_prefix: str, *, key: slice = slice(0, 1)) -> None:
         for tag, value in [
             (f"{tag_prefix}.ACC", 0),
             (f"{tag_prefix}.DN",  0),
@@ -267,5 +279,4 @@ class Counter:
         ]:
             attr = self.parent._lookup(tag)
             if attr is not None:
-                self.parent._write_attr(attr, key, value)
-
+                self.parent._write_attr(attr, key, [value])
