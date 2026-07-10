@@ -7,7 +7,7 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable, overload, Type
+from typing import Any, Callable, List, overload, Type
 
 
 class TypeSpec:
@@ -160,17 +160,17 @@ class AttributeActions:
     def _get_attr_class(self) -> Any | None:
         return self._attr_class_ref() if self._attr_class_ref else None
 
-    def _read_attr(self, attr: Any, key: Any) -> int | None:
+    def _read_attr(self, attr: Any, key: slice = slice(0,1)) -> List[Any] | None:
         try:
-            return int(attr[key])
+            return attr[key]
         except Exception as e:
             val = getattr(attr, "value", None)
             if val is not None:
-                return int(val)
+                return val
             self._logger(f"Failed to read {key} from attr: {e}")
             return None
 
-    def _write_attr(self, attr: Any, key: Any, value: int) -> None:
+    def _write_attr(self, attr: Any, key: slice, value: List[Any]) -> None:
         try:
             attr[key] = value
         except (TypeError, KeyError, IndexError):
@@ -197,12 +197,12 @@ class AttributeActions:
 
     @overload
     def on_change(
-        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: Any | None = ..., defer = ...
+        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: slice = ..., defer = ...
     ) -> "AttributeActions": ...
 
     @overload
     def on_change(
-        self, tag_name: str, callback: None = ..., *, key: Any | None = ..., defer= ...
+        self, tag_name: str, callback: None = ..., *, key: slice = ..., defer= ...
     ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
 
     def on_change(
@@ -210,7 +210,7 @@ class AttributeActions:
         tag_name: str,
         callback: Callable[[Any, Any, Any], None] | None = None,
         *,
-        key: Any | None = None,
+        key: slice = slice(0,1),
         defer: bool = False,
     ) -> "AttributeActions | Callable":
         def _wrap(fn: Callable) -> Callable:
@@ -242,7 +242,7 @@ class AttributeActions:
             self._listeners.pop(tag_name, None)
         return self
 
-    def _fire_listeners(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
+    def _fire_listeners(self, tag_name: str, attr: Any, key: slice, value: Any) -> None:
         with self._listener_lock:
             entries = list(self._listeners.get(tag_name, []))
         for callback, key_filter in entries:
@@ -265,7 +265,7 @@ class AttributeActions:
     def is_running(self) -> bool:
         return any(t.is_alive() for t in self._threads)
 
-    def on_set(self, attr: Any, key: Any, value: Any) -> None:
+    def on_set(self, attr: Any, key: slice, value: Any) -> None:
         from src.ethernetip_emulator.server.tag_specs import tag_registry
 
         tag_name = getattr(attr, "name", None)
