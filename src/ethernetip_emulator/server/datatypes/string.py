@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/datatypes/string.py
+# src/ethernetip_emulator/server/datatypes/string.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, override
 from src.ethernetip_emulator.server.datatypes.templates import Basic

@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/datatypes/lint.py
+# src/ethernetip_emulator/server/datatypes/lint.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from src.ethernetip_emulator.server.datatypes.templates import Basic

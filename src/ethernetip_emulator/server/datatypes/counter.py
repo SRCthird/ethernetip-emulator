@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/counter.py
+# src/ethernetip_emulator/server/actions/counter.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 from src.ethernetip_emulator.server.device import actions
