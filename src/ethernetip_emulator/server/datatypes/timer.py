@@ -20,8 +20,19 @@ class TimerIsDoingSomething:
         return self._dn_value
 
     def __call__(
-        self, fn: Callable[[Any, Any, Any], None]
+        self,
+        fn: Callable[[Any, Any, Any], None],
+        *,
+        rising_edge: bool = True,
     ) -> Callable[[Any, Any, Any], None]:
+        if rising_edge:
+            def _guarded(attr: Any, key: Any, value: Any) -> None:
+                if not value[0]:
+                    return
+                fn(attr, key, value)
+            _guarded.__name__ = getattr(fn, "__name__", "_guarded")
+            self._register_fn(_guarded)
+            return fn
         self._register_fn(fn)
         return fn
 
