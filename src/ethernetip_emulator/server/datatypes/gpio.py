@@ -33,7 +33,7 @@ try:
             self.parent = parent
             self._gpio, self._platform = _import_gpio()
             self._gpio.setmode(
-                self._gpio.BOARD if self._platform == "RPi" else self._gpio.SUNXI
+                self._gpio.BCM if self._platform == "RPi" else self._gpio.SUNXI
             )
             self._pins: dict[str, Any] = {}
             self._pwm_instances: dict[str, Any] = {}
@@ -195,10 +195,11 @@ try:
                 return False
             return bool(self._gpio.input(pin))
 
-        def write_pin(self, name_prefix: str, attr: Any, key: slice, value: Any) -> None:
-            if attr is None:
+        def write_pin(self, name_prefix: str, value: bool, key: slice = slice(0,1)) -> None:
+            data_tag = self.parent._lookup(f"{name_prefix}.VALUE")
+            if data_tag is None:
                 return
-            self.parent._write_attr(attr, key, [value])
+            self.parent._write_attr(data_tag, key, [value])
 
         def __exit__(
             self,
