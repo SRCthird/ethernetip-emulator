@@ -9,10 +9,19 @@ from src.ethernetip_emulator.server.device import actions
 @tag_registry.register
 def _():
     return [
+        ("O_INCR",            actions.type.INT(0)),
+
         ("GPIO_18",           actions.type.GPIO((
             18, False, "out"
         ))),
-        ("GPIO_40",           actions.type.GPIO((
-            40, True, "in"
+        ("GPIO_16",           actions.type.GPIO((
+            16, False, "out"
+        ))),
+        ("GPIO_23",           actions.type.GPIO((
+            23, False, "out"
+        ))),
+
+        ("GPIO_12",           actions.type.GPIO((
+            12, True, "in"
         ))),
     ]
