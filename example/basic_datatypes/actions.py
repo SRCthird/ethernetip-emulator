@@ -8,18 +8,32 @@ from src.ethernetip_emulator.server.device import actions
 
 @actions.string.on_change("I_TEXT")
 def handle_i_text(attr, key, value) -> None:
-    """
-    Mirror I_TEXT.DATA -> O_TEXT.DATA, maintaining the update counter.
-
-    Increments O_Updates (COUNTER) and O_Updates.LAZY (INT) on every write.
-    When O_Updates.DN is set, writes the sentinel "Count Completed" instead.
-    """
     actions.counter.increment("O_Updates")
     actions.increment.increment("O_Updates.LAZY")
     if actions.counter.is_done("O_Updates"):
         actions.string.set_val("O_TEXT", "Count Completed")
     else:
         actions.string.set_val("O_TEXT", value)
+
+@actions.usintarray.on_change("O_UsintArray", key=slice(0,1))
+def node_1_changed(attr, key, value):
+    print(f"Node 1 has changed: {value[0]}")
+
+@actions.usintarray.on_change("O_UsintArray", key=slice(1,2))
+def node_2_changed(attr, key, value):
+    print(f"Node 2 has changed: {value[0]}")
+
+@actions.usintarray.on_change("O_UsintArray", key=slice(2,3))
+def node_3_changed(attr, key, value):
+    print(f"Node 3 has changed: {value[0]}")
+
+@actions.usintarray.on_change("O_UsintArray", key=slice(3,4))
+def node_4_changed(attr, key, value):
+    print(f"Node 4 has changed: {value[0]}")
+
+@actions.usintarray.on_change("O_UsintArray", key=slice(0,4))
+def nodes_changed(attr, key, value):
+    print(f"All Nodes have changed: {value[0]}")
 
 @actions.timer.is_done("O_Timer")
 def handle_timer_done(attr, key, value) -> None:
