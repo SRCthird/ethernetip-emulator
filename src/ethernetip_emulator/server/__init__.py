@@ -2,4 +2,4 @@
 # All rights reserved
 
 # src/ethernetip_emulator/server/__init__.py
-import src.ethernetip_emulator.server.datatypes
+from . import datatypes

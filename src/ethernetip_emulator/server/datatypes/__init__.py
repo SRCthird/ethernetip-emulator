@@ -1,36 +1,36 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# src/server/actions/__init__.py
-from src.ethernetip_emulator.server.datatypes.increment import Increment
-from src.ethernetip_emulator.server.datatypes.counter import Counter
-from src.ethernetip_emulator.server.datatypes.timer import Timer
-from src.ethernetip_emulator.server.datatypes.string import String
-from src.ethernetip_emulator.server.datatypes.sstring import Sstring
-from src.ethernetip_emulator.server.datatypes.sstringarray import SstringArray
-from src.ethernetip_emulator.server.datatypes.sint import Sint
-from src.ethernetip_emulator.server.datatypes.sintarray import SintArray
-from src.ethernetip_emulator.server.datatypes.int import Int
-from src.ethernetip_emulator.server.datatypes.intarray import IntArray
-from src.ethernetip_emulator.server.datatypes.bool import Bool
-from src.ethernetip_emulator.server.datatypes.boolarray import BoolArray
-from src.ethernetip_emulator.server.datatypes.dint import Dint
-from src.ethernetip_emulator.server.datatypes.dintarray import DintArray
-from src.ethernetip_emulator.server.datatypes.real import Real
-from src.ethernetip_emulator.server.datatypes.realarray import RealArray
-from src.ethernetip_emulator.server.datatypes.lreal import LReal
-from src.ethernetip_emulator.server.datatypes.lrealarray import LrealArray
-from src.ethernetip_emulator.server.datatypes.lint import Lint
-from src.ethernetip_emulator.server.datatypes.lintarray import LintArray
-from src.ethernetip_emulator.server.datatypes.udint import Udint
-from src.ethernetip_emulator.server.datatypes.udintarray import UdintArray
-from src.ethernetip_emulator.server.datatypes.uint import Uint
-from src.ethernetip_emulator.server.datatypes.uintarray import UintArray
-from src.ethernetip_emulator.server.datatypes.ulint import Ulint
-from src.ethernetip_emulator.server.datatypes.ulintarray import UlintArray
-from src.ethernetip_emulator.server.datatypes.usint import Usint
-from src.ethernetip_emulator.server.datatypes.usintarray import UsintArray
-from src.ethernetip_emulator.server.datatypes.gpio import Gpio
+# src/ethernetip_emulator/server/actions/__init__.py
+from .increment import Increment
+from .counter import Counter
+from .timer import Timer
+from .string import String
+from .sstring import Sstring
+from .sstringarray import SstringArray
+from .sint import Sint
+from .sintarray import SintArray
+from .int import Int
+from .intarray import IntArray
+from .bool import Bool
+from .boolarray import BoolArray
+from .dint import Dint
+from .dintarray import DintArray
+from .real import Real
+from .realarray import RealArray
+from .lreal import LReal
+from .lrealarray import LrealArray
+from .lint import Lint
+from .lintarray import LintArray
+from .udint import Udint
+from .udintarray import UdintArray
+from .uint import Uint
+from .uintarray import UintArray
+from .ulint import Ulint
+from .ulintarray import UlintArray
+from .usint import Usint
+from .usintarray import UsintArray
+from .gpio import Gpio
 
 __all__ = [
     "Increment", "Counter", "Timer", 

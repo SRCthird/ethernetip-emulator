@@ -5,11 +5,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, List
 import time
-from src.ethernetip_emulator.server.device import actions
-from src.ethernetip_emulator.server.tag_specs import tag_registry
+from ..device import actions
+from ..tag_specs import tag_registry
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ..actions import AttributeActions
 
 class TimerIsDoingSomething:
     def __init__(self, dn_value: bool, register_fn: Callable) -> None:

@@ -4,12 +4,12 @@
 # src/ethernetip_emulator/server/datatypes/string.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, override
-from src.ethernetip_emulator.server.datatypes.templates import Basic
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.device import actions
+from .templates import Basic
+from ..tag_specs import tag_registry
+from ..device import actions
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ..actions import AttributeActions
 
 @actions.datatype
 class String(Basic):

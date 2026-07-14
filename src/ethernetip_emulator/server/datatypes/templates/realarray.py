@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ...actions import AttributeActions
 
 _ZERO = 0.0
 _TOL  = 1e-9

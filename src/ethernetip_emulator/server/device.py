@@ -5,8 +5,8 @@
 from typing import Any, Dict, Mapping, Optional
 
 from cpppo.server.enip import device
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.actions import AttributeActions
+from .tag_specs import tag_registry
+from .actions import AttributeActions
 
 
 class AttributeDevice(device.Attribute):

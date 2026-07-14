@@ -4,10 +4,10 @@
 # src/ethernetip_emulator/server/datatypes/increment.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
-from src.ethernetip_emulator.server.device import actions
+from ..device import actions
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ..actions import AttributeActions
 
 @actions.datatype
 class Increment:

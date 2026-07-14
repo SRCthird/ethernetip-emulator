@@ -266,7 +266,7 @@ class AttributeActions:
         return any(t.is_alive() for t in self._threads)
 
     def on_set(self, attr: Any, key: slice, value: Any) -> None:
-        from src.ethernetip_emulator.server.tag_specs import tag_registry
+        from .tag_specs import tag_registry
 
         tag_name = getattr(attr, "name", None)
         if tag_name is None:

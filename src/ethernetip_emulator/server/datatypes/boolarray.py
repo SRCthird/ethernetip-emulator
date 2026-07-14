@@ -4,10 +4,10 @@
 # src/ethernetip_emulator/server/datatypes/boolarray.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
-from src.ethernetip_emulator.server.datatypes import templates
-from src.ethernetip_emulator.server.device import actions
-from src.ethernetip_emulator.server.actions import TypeSpec
-from src.ethernetip_emulator.server.tag_specs import tag_registry
+from . import templates
+from ..device import actions
+from ..actions import TypeSpec
+from ..tag_specs import tag_registry
 
 if TYPE_CHECKING:
     from src.ethernetip_emulator.server.actions import AttributeActions
