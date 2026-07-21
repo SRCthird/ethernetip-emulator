@@ -20,6 +20,8 @@ from src.ethernetip_emulator.server.device import AttributeDevice
 from src.ethernetip_emulator.server.tag_specs import tag_registry
 from src.ethernetip_emulator.server.device import actions
 
+from tests.server import next_port
+
 
 def _start_server(port: int) -> tuple:
     server_control = cpppo.apidict(timeout=1.0)
@@ -62,7 +64,7 @@ class TestAttributeDevice(unittest.TestCase):
                 ("tag_bool", actions.type.bool(False)),
             ]
 
-        cls.server_control, cls.thread = _start_server(44818)
+        cls.server_control, cls.thread = _start_server(next_port())
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -127,7 +129,7 @@ class TestAttributeDefaults(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.server_control, cls.thread = _start_server(44819)
+        cls.server_control, cls.thread = _start_server(next_port())
 
     @classmethod
     def tearDownClass(cls) -> None:

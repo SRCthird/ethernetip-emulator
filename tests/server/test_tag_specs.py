@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from src.ethernetip_emulator.server.tag_specs import TagRegistry
+from tests.server import next_port
 
 
 def _make_spec(type_name: str, default=None):
@@ -322,10 +323,12 @@ class TestBuildArgv(unittest.TestCase):
         def _():
             return [("t", _make_spec("REAL", 0.0))]
 
-        argv = self.reg.build_argv(base_args=["--print", "--address", ":44818"])
+        port = next_port()
+
+        argv = self.reg.build_argv(base_args=["--print", "--address", f":{port}"])
         self.assertEqual(argv[0], "--print")
         self.assertEqual(argv[1], "--address")
-        self.assertEqual(argv[2], ":44818")
+        self.assertEqual(argv[2], f":{port}")
         self.assertIn("t=REAL", argv)
 
     def test_build_argv_empty_registry(self):
