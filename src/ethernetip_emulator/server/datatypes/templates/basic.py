@@ -8,14 +8,19 @@ from typing import TYPE_CHECKING, Any, List
 if TYPE_CHECKING:
     from ...actions import AttributeActions
 
+
 class Basic:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: List[Any]) -> None:
+    def on_set_hook(
+        self, tag_name: str, attr: Any, key: slice, value: List[Any]
+    ) -> None:
         pass
 
-    def on_change(self, name_prefix: str, callback=None, *, key=slice(0,1), defer=False):
+    def on_change(
+        self, name_prefix: str, callback=None, *, key=slice(0, 1), defer=False
+    ):
         return self.parent.on_change(name_prefix, callback, key=key, defer=defer)
 
     def get_val(self, name_prefix: str, key: slice = slice(0, 1, None)) -> Any:

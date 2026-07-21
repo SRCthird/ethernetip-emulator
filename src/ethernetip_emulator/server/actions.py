@@ -13,7 +13,9 @@ from typing import Any, Callable, List, overload, Type
 class TypeSpec:
     __slots__ = ("type_name", "default")
 
-    def __init__(self, type_name: str, default: Any, namespace: "TypeNamespace | None" = None) -> None:
+    def __init__(
+        self, type_name: str, default: Any, namespace: "TypeNamespace | None" = None
+    ) -> None:
         key = type_name.upper()
         validator = namespace._types.get(key) if namespace is not None else None
         self.type_name: str = key
@@ -65,8 +67,10 @@ class TypeNamespace:
                 f"Unknown PLC type {name!r}. Registered types: {sorted(types)}"
             )
         ns = self
+
         def factory(default: Any) -> TypeSpec:
             return TypeSpec(key, default, ns)
+
         factory.__name__ = key
         factory.__qualname__ = f"TypeNamespace.{key}"
         return factory
@@ -105,7 +109,9 @@ class AttributeActions:
 
     def register_datatype(self, name: str, cls: Type[Any]) -> "AttributeActions":
         self._datatypes[name] = cls(self)
-        self._datatypes["type"].register_type(name, getattr(cls, "type_validator", None))
+        self._datatypes["type"].register_type(
+            name, getattr(cls, "type_validator", None)
+        )
         return self
 
     def datatype(
@@ -114,9 +120,11 @@ class AttributeActions:
     ) -> "AttributeActions | Callable[[Type[Any]], Type[Any]]":
         if isinstance(name_or_cls, str):
             name = name_or_cls
+
             def decorator(cls: Type[Any]) -> Type[Any]:
                 self.register_datatype(name, cls)
                 return cls
+
             return decorator
         cls = name_or_cls
         self.register_datatype(cls.__name__.lower(), cls)
@@ -160,7 +168,7 @@ class AttributeActions:
     def _get_attr_class(self) -> Any | None:
         return self._attr_class_ref() if self._attr_class_ref else None
 
-    def _read_attr(self, attr: Any, key: slice = slice(0,1)) -> List[Any] | None:
+    def _read_attr(self, attr: Any, key: slice = slice(0, 1)) -> List[Any] | None:
         try:
             return attr[key]
         except Exception as e:
@@ -197,29 +205,38 @@ class AttributeActions:
 
     @overload
     def on_change(
-        self, tag_name: str, callback: Callable[[Any, Any, Any], None], *, key: slice = ..., defer = ...
+        self,
+        tag_name: str,
+        callback: Callable[[Any, Any, Any], None],
+        *,
+        key: slice = ...,
+        defer=...,
     ) -> "AttributeActions": ...
 
     @overload
     def on_change(
-        self, tag_name: str, callback: None = ..., *, key: slice = ..., defer= ...
-    ) -> Callable[[Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]]: ...
+        self, tag_name: str, callback: None = ..., *, key: slice = ..., defer=...
+    ) -> Callable[
+        [Callable[[Any, Any, Any], None]], Callable[[Any, Any, Any], None]
+    ]: ...
 
     def on_change(
         self,
         tag_name: str,
         callback: Callable[[Any, Any, Any], None] | None = None,
         *,
-        key: slice = slice(0,1),
+        key: slice = slice(0, 1),
         defer: bool = False,
     ) -> "AttributeActions | Callable":
         def _wrap(fn: Callable) -> Callable:
             if not defer:
                 return fn
+
             def deferred(attr, k, value):
                 t = self._thread_factory(target=lambda: fn(attr, k, value), daemon=True)
                 self._threads.append(t)
                 t.start()
+
             deferred.__name__ = getattr(fn, "__name__", "deferred")
             return deferred
 
@@ -231,7 +248,9 @@ class AttributeActions:
             _register(callback)
             return self
 
-        def decorator(fn: Callable[[Any, Any, Any], None]) -> Callable[[Any, Any, Any], None]:
+        def decorator(
+            fn: Callable[[Any, Any, Any], None],
+        ) -> Callable[[Any, Any, Any], None]:
             _register(fn)
             return fn
 

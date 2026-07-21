@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from src.ethernetip_emulator.server.actions import AttributeActions
 
+
 @actions.datatype
 class Bool(Basic):
     def __init__(self, parent: AttributeActions):
@@ -17,9 +18,9 @@ class Bool(Basic):
 
     @staticmethod
     def type_validator(v: Any) -> bool:
-        try:
-            return bool(v)
-        except (TypeError, ValueError) as exc:
+        if isinstance(v, bool) or v in [0, 1]:
+            return v
+        else:
             raise TypeError(
                 f"BOOL default must be boolean, got {type(v).__name__!r}: {v!r}"
-            ) from exc
+            )
