@@ -20,10 +20,6 @@ from src.ethernetip_emulator.server.device import AttributeDevice
 from src.ethernetip_emulator.server.tag_specs import tag_registry
 from src.ethernetip_emulator.server.device import actions
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 
 def _start_server(port: int) -> tuple:
     server_control = cpppo.apidict(timeout=1.0)
