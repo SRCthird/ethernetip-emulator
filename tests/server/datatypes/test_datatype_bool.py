@@ -12,6 +12,7 @@ from cpppo.server.enip.main import main as enip_main
 from src.ethernetip_emulator.server.device import AttributeDevice
 from src.ethernetip_emulator.server.tag_specs import tag_registry
 from src.ethernetip_emulator.server.device import actions
+from tests.server import next_port
 
 
 def _start_server(port: int) -> tuple:
@@ -44,7 +45,7 @@ class TestDatatypeBoolRegistry(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.server_control, cls.thread = _start_server(44820)
+        cls.server_control, cls.thread = _start_server(next_port())
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -52,7 +53,7 @@ class TestDatatypeBoolRegistry(unittest.TestCase):
 
     def test_type_validator_invalid(self):
         with self.assertRaises(ValueError):
-            tag_registry.register(lambda: [("tag_bool", actions.type.bool(42))])
+            tag_registry.register(lambda: [("tag_bool", actions.type.BOOL(42))])
 
 
 class TestDatatypeBoolActions(unittest.TestCase):
@@ -66,7 +67,7 @@ class TestDatatypeBoolActions(unittest.TestCase):
                 ("tag_array", actions.type.BOOLARRAY((True, True, True, True))),
             ]
 
-        cls.server_control, cls.thread = _start_server(44821)
+        cls.server_control, cls.thread = _start_server(next_port())
 
     @classmethod
     def tearDownClass(cls) -> None:
