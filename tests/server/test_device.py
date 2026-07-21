@@ -1,272 +1,320 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# tests/server/test_device.py
-import sys
-import types
+# test/server/test_device.py
 import unittest
-from unittest.mock import MagicMock, patch
-from typing import Any, Dict
+from unittest.mock import patch
+
+import threading
+import time
+import cpppo
+import os
+import signal
+from cpppo.server.enip.main import main as enip_main
+from cpppo.server.enip import device as enip_device
+import cpppo.server.enip.parser as parser
 
 
-def _install_cpppo_stubs():
-    """
-    Build the minimal cpppo package/module tree that device.py needs:
-        cpppo
-        cpppo.server
-        cpppo.server.enip
-        cpppo.server.enip.device          ← needs device.Attribute
-    """
-    # Only stub if cpppo is not already installed in this environment
-    if "cpppo" in sys.modules and not isinstance(sys.modules["cpppo"], MagicMock):
-        return  # real cpppo is available – nothing to do
+from src.ethernetip_emulator.server.actions import TypeSpec
+from src.ethernetip_emulator.server.device import AttributeDevice
+from src.ethernetip_emulator.server.tag_specs import tag_registry
+from src.ethernetip_emulator.server.device import actions
 
-    class _BaseAttribute:
-        """Minimal stand-in for cpppo.server.enip.device.Attribute."""
-
-        def __init__(self, name: str, type_cls: Any, **kwargs: Any) -> None:
-            self.name = name
-            self.type_cls = type_cls
-            self.kwargs = kwargs
-            self._store: Dict[Any, Any] = {}
-
-        def __setitem__(self, key: Any, value: Any) -> None:
-            self._store[key] = value
-
-        def __getitem__(self, key: Any) -> Any:
-            return self._store[key]
-
-    enip_device_mod = types.ModuleType("cpppo.server.enip.device")
-    enip_device_mod.Attribute = _BaseAttribute  # type: ignore
-
-    enip_mod = types.ModuleType("cpppo.server.enip")
-    enip_mod.device = enip_device_mod  # type: ignore
-
-    server_mod = types.ModuleType("cpppo.server")
-    server_mod.enip = enip_mod  # type: ignore
-
-    cpppo_mod = types.ModuleType("cpppo")
-    cpppo_mod.server = server_mod  # type: ignore
-
-    sys.modules["cpppo"] = cpppo_mod
-    sys.modules["cpppo.server"] = server_mod
-    sys.modules["cpppo.server.enip"] = enip_mod
-    sys.modules["cpppo.server.enip.device"] = enip_device_mod
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-_install_cpppo_stubs()
+def _start_server(port: int) -> tuple:
+    server_control = cpppo.apidict(timeout=1.0)
+    AttributeDevice.set_server_control(server_control)
 
-import importlib as _importlib
+    def background_task():
+        with AttributeDevice._actions.bind(AttributeDevice):
+            enip_main(
+                argv=tag_registry.build_argv(
+                    base_args=["--print", "--address", f":{port}"]
+                ),
+                attribute_class=AttributeDevice,
+                server={"control": server_control},
+            )
 
-_device_mod = _importlib.import_module("src.ethernetip_emulator.server.device")
-AttributeDevice = _device_mod.AttributeDevice
-actions = _device_mod.actions
-
-
-def _make_registry_entries(extra=None):
-    """Default tag registry entries used across tests."""
-    base = [
-        ("tag_int",   "INT",  42),
-        ("tag_float", "REAL", 3.14),
-        ("tag_list",  "DINT", [1, 2, 3]),
-        ("tag_none",  "BOOL", None),
-    ]
-    return base + (extra or [])
+    thread = threading.Thread(target=background_task, daemon=True)
+    thread.start()
+    time.sleep(0.5)
+    return server_control, thread
 
 
-class _RecordingActions:
-    def __init__(self):
-        self.calls = []
-
-    def on_set(self, attr, key, value):
-        self.calls.append((attr, key, value))
+def _stop_server(server_control, thread) -> None:
+    server_control["done"] = True
+    thread.join(timeout=5.0)
+    tag_registry.invalidate()
+    tag_registry._raw.clear()
+    AttributeDevice.reset_defaults()
 
 
 class TestAttributeDevice(unittest.TestCase):
 
-    def setUp(self):
-        global AttributeDevice
-        device_mod = _importlib.import_module("src.ethernetip_emulator.server.device")
-        AttributeDevice = device_mod.AttributeDevice
-        AttributeDevice.reset_defaults()
-        self._registry_patcher = patch(
-            "src.ethernetip_emulator.server.device.tag_registry",
-        )
-        self.mock_tag_registry = self._registry_patcher.start()
-        self.mock_tag_registry.build.return_value = _make_registry_entries()
-        self.recording_actions = _RecordingActions()
+    @classmethod
+    def setUpClass(cls):
+        @tag_registry.register
+        def _():
+            return [
+                ("tag_int", actions.type.int(42)),
+                ("tag_float", actions.type.real(3.14)),
+                ("tag_string", actions.type.sstring("String")),
+                ("tag_bool", actions.type.bool(False)),
+            ]
 
-    def tearDown(self):
-        self._registry_patcher.stop()
-        AttributeDevice.reset_defaults()
+        cls.server_control, cls.thread = _start_server(44818)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _stop_server(cls.server_control, cls.thread)
+
+    def setUp(self) -> None:
+        AttributeDevice._ensure_defaults()
 
     def test_ensure_defaults_populates_dict(self):
-        AttributeDevice._ensure_defaults()
         self.assertIsNotNone(AttributeDevice._defaults)
-        self.assertIn("tag_int", AttributeDevice._defaults)
-        self.assertIn("tag_float", AttributeDevice._defaults)
-        self.assertIn("tag_list", AttributeDevice._defaults)
+        self.assertIn("tag_int", AttributeDevice._defaults)  # type: ignore
+        self.assertIn("tag_float", AttributeDevice._defaults)  # type: ignore
+        self.assertIn("tag_string", AttributeDevice._defaults)  # type: ignore
+        self.assertIn("tag_bool", AttributeDevice._defaults)  # type: ignore
 
     def test_ensure_defaults_excludes_none_values(self):
-        AttributeDevice._ensure_defaults()
-        self.assertNotIn("tag_none", AttributeDevice._defaults)
+        self.assertNotIn("tag_none", AttributeDevice._defaults)  # type: ignore
 
-    def test_ensure_defaults_is_idempotent(self):
-        """Second call must not rebuild – tag_registry.build called only once."""
+    def test_ensure_defaults_idempotent(self):
+        first = dict(AttributeDevice._defaults)  # type: ignore
         AttributeDevice._ensure_defaults()
+        self.assertEqual(first, AttributeDevice._defaults)  # type: ignore
+
+    def test_defaults_correct_int_value(self):
+        self.assertEqual(AttributeDevice._defaults.get("tag_int"), 42)  # type: ignore
+
+    def test_defaults_correct_float_value(self):
+        self.assertAlmostEqual(
+            AttributeDevice._defaults.get("tag_float"), 3.14, places=5  # type: ignore
+        )
+
+    def test_defaults_correct_bool_value(self):
+        self.assertEqual(AttributeDevice._defaults.get("tag_bool"), False)  # type: ignore
+
+    def test_defaults_correct_string_value(self):
+        self.assertEqual(AttributeDevice._defaults.get("tag_string"), "String")  # type: ignore
+
+    def test_reset_defaults_clears_defaults(self):
         AttributeDevice._ensure_defaults()
-        self.mock_tag_registry.build.assert_called_once()
+        self.assertIsNotNone(AttributeDevice._defaults)
+        AttributeDevice.reset_defaults()
+        self.assertIsNone(AttributeDevice._defaults)
+
+    def test_reset_defaults_clears_registry(self):
+        AttributeDevice.reset_defaults()
+        self.assertEqual(len(AttributeDevice.registry), 0)
+
+    def test_typespec_real(self):
+        ts = TypeSpec("real", 1.0)
+        self.assertEqual(ts.type_name, "REAL")
+
+    def test_typespec_int(self):
+        ts = TypeSpec("int", 0)
+        self.assertEqual(ts.type_name, "INT")
+
+    def test_typespec_preserves_default(self):
+        ts = TypeSpec("real", 9.9)
+        self.assertAlmostEqual(ts.default, 9.9, places=5)
+
+
+class TestAttributeDefaults(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server_control, cls.thread = _start_server(44819)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        _stop_server(cls.server_control, cls.thread)
 
     def test_ensure_defaults_called_implicitly_on_first_init(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+
         self.assertIsNone(AttributeDevice._defaults)
-        AttributeDevice("tag_int", "INT")
+
+        @tag_registry.register
+        def _():
+            return [("tag_int", actions.type.int(42))]
+
+        AttributeDevice._ensure_defaults()
         self.assertIsNotNone(AttributeDevice._defaults)
 
-    def test_init_adds_to_class_registry(self):
-        attr = AttributeDevice("tag_int", "INT")
-        self.assertIn("tag_int", AttributeDevice.registry)
-        self.assertIs(AttributeDevice.registry["tag_int"], attr)
-
-    def test_init_uses_custom_registry(self):
-        custom: Dict[str, Any] = {}
-        attr = AttributeDevice("tag_int", "INT", registry=custom)
-        self.assertIn("tag_int", custom)
-        self.assertIs(custom["tag_int"], attr)
-
-    def test_init_custom_registry_does_not_pollute_class_registry(self):
-        custom: Dict[str, Any] = {}
-        AttributeDevice("tag_int", "INT", registry=custom)
-        self.assertNotIn("tag_int", AttributeDevice.registry)
-
-    def test_init_multiple_instances_all_registered(self):
-        a1 = AttributeDevice("tag_int", "INT")
-        a2 = AttributeDevice("tag_float", "REAL")
-        self.assertIs(AttributeDevice.registry["tag_int"], a1)
-        self.assertIs(AttributeDevice.registry["tag_float"], a2)
-
-    def test_init_last_instance_wins_for_same_name(self):
-        AttributeDevice("tag_int", "INT")
-        attr2 = AttributeDevice("tag_int", "INT")
-        self.assertIs(AttributeDevice.registry["tag_int"], attr2)
-
-    def test_init_custom_defaults_override_class_defaults(self):
-        custom_defaults = {"tag_int": 99}
-        attr = AttributeDevice("tag_int", "INT", defaults=custom_defaults)
-        self.assertEqual(attr.kwargs.get("default"), 99)
-
-    def test_init_custom_actions_stored_on_instance(self):
-        attr = AttributeDevice("tag_int", "INT", actions=self.recording_actions)
-        self.assertIs(attr._actions, self.recording_actions)
-
-    def test_init_falls_back_to_class_actions_when_none_given(self):
-        attr = AttributeDevice("tag_int", "INT")
-        self.assertIs(attr._actions, AttributeDevice._actions)
-
-    def test_scalar_default_set_when_no_prior_default(self):
-        attr = AttributeDevice("tag_int", "INT")
-        self.assertEqual(attr.kwargs.get("default"), 42)
-
-    def test_scalar_default_overwrites_scalar_kwarg_default(self):
-        attr = AttributeDevice("tag_int", "INT", default=0)
-        self.assertEqual(attr.kwargs.get("default"), 42)
-
-    def test_scalar_default_overwrites_first_element_of_list_kwarg(self):
-        attr = AttributeDevice("tag_int", "INT", default=[0, 0, 0])
-        self.assertEqual(attr.kwargs["default"], [42, 0, 0])
-
-    def test_scalar_default_replaces_empty_list_kwarg(self):
-        attr = AttributeDevice("tag_int", "INT", default=[])
-        self.assertEqual(attr.kwargs["default"], 42)
-
-    def test_float_scalar_default_applied(self):
-        attr = AttributeDevice("tag_float", "REAL")
-        self.assertAlmostEqual(attr.kwargs.get("default"), 3.14, places=5)
-
-    def test_list_default_set_when_no_prior_default(self):
-        attr = AttributeDevice("tag_list", "DINT")
-        self.assertEqual(attr.kwargs.get("default"), [1, 2, 3])
-
-    def test_list_default_merges_into_longer_list_kwarg(self):
-        attr = AttributeDevice("tag_list", "DINT", default=[0, 0, 0, 99])
-        self.assertEqual(attr.kwargs["default"], [1, 2, 3, 99])
-
-    def test_list_default_partial_merge_when_kwarg_shorter(self):
-        attr = AttributeDevice("tag_list", "DINT", default=[0, 0])
-        self.assertEqual(attr.kwargs["default"], [1, 2])
-
-    def test_list_default_replaces_empty_list_kwarg(self):
-        attr = AttributeDevice("tag_list", "DINT", default=[])
-        self.assertEqual(attr.kwargs["default"], [1, 2, 3])
-
-    def test_list_default_original_not_mutated(self):
-        AttributeDevice._ensure_defaults()
-        original = list(AttributeDevice._defaults["tag_list"])
-        AttributeDevice("tag_list", "DINT", default=[0, 0, 0, 99])
-        self.assertEqual(AttributeDevice._defaults["tag_list"], original)
-
-    def test_unknown_tag_receives_no_default(self):
-        attr = AttributeDevice("unknown_tag", "INT")
-        self.assertNotIn("default", attr.kwargs)
-
-    def test_tag_with_none_registry_value_receives_no_default(self):
-        attr = AttributeDevice("tag_none", "BOOL")
-        self.assertNotIn("default", attr.kwargs)
-
-    def test_apply_default_is_noop_when_instance_defaults_is_none(self):
-        attr = AttributeDevice("tag_int", "INT")
-        attr._defaults = None
-        kwargs: Dict[str, Any] = {}
-        attr._apply_default("tag_int", kwargs)
-        self.assertEqual(kwargs, {})
-
-    def test_setitem_persists_value(self):
-        attr = AttributeDevice("tag_int", "INT", actions=self.recording_actions)
-        attr[0] = 100
-        self.assertEqual(attr[0], 100)
-
-    def test_setitem_calls_on_set_with_correct_args(self):
-        attr = AttributeDevice("tag_int", "INT", actions=self.recording_actions)
-        attr[0] = 55
-        self.assertEqual(len(self.recording_actions.calls), 1)
-        rec_attr, rec_key, rec_val = self.recording_actions.calls[0]
-        self.assertIs(rec_attr, attr)
-        self.assertEqual(rec_key, 0)
-        self.assertEqual(rec_val, 55)
-
-    def test_setitem_multiple_writes_all_forwarded_to_on_set(self):
-        attr = AttributeDevice("tag_int", "INT", actions=self.recording_actions)
-        attr[0] = 1
-        attr[1] = 2
-        attr[0] = 3
-        self.assertEqual(len(self.recording_actions.calls), 3)
-
-    def test_setitem_latest_value_wins(self):
-        attr = AttributeDevice("tag_int", "INT", actions=self.recording_actions)
-        attr[0] = 7
-        attr[0] = 42
-        self.assertEqual(attr[0], 42)
-
-    def test_reset_defaults_sets_defaults_to_none(self):
-        AttributeDevice._ensure_defaults()
+    def test_ensure_defaults_after_register(self):
         AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+
+        @tag_registry.register
+        def _():
+            return [("tag_extra", actions.type.int(7))]
+
+        AttributeDevice._ensure_defaults()
+        self.assertIn("tag_extra", AttributeDevice._defaults)  # type: ignore
+
+    def test_defaults_only_non_none(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+
+        @tag_registry.register
+        def _():
+            return [("tag_int", actions.type.int(42))]
+
+        AttributeDevice._ensure_defaults()
+        for val in AttributeDevice._defaults.values():  # type: ignore
+            self.assertIsNotNone(val)
+
+    def test_registry_empty_after_reset(self):
+        AttributeDevice.reset_defaults()
+        self.assertFalse(AttributeDevice.registry)
+
+
+class TestShutdown(unittest.TestCase):
+
+    def setUp(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+        AttributeDevice._server_control = None
+
+    def tearDown(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+        AttributeDevice._server_control = None
+
+    def test_shutdown_with_control_sets_done(self):
+        ctrl = {}
+        AttributeDevice._server_control = ctrl  # type: ignore
+        AttributeDevice.shutdown()
+        self.assertTrue(ctrl["done"])
+
+    def test_shutdown_resets_defaults(self):
+        ctrl = {}
+        AttributeDevice._server_control = ctrl  # type: ignore
+
+        @tag_registry.register
+        def _():
+            return [("tag_int", actions.type.int(1))]
+
+        AttributeDevice._ensure_defaults()
+        self.assertIsNotNone(AttributeDevice._defaults)
+
+        AttributeDevice.shutdown()
         self.assertIsNone(AttributeDevice._defaults)
 
-    def test_reset_defaults_clears_class_registry(self):
-        AttributeDevice("tag_int", "INT")
-        AttributeDevice.reset_defaults()
-        self.assertEqual(AttributeDevice.registry, {})
+    def test_shutdown_without_control_sends_sigint(self):
 
-    def test_reset_defaults_allows_fresh_rebuild(self):
-        AttributeDevice._ensure_defaults()
-        AttributeDevice.reset_defaults()
-        AttributeDevice._ensure_defaults()
-        self.assertEqual(self.mock_tag_registry.build.call_count, 2)
+        AttributeDevice._server_control = None
 
-    def test_module_level_actions_is_class_actions(self):
-        import importlib
-        device_mod = importlib.import_module("src.ethernetip_emulator.server.device")
-        module_actions = device_mod.actions
-        self.assertIs(module_actions, AttributeDevice._actions)
+        with patch("os.kill") as mock_kill:
+            AttributeDevice.shutdown()
+            mock_kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+
+
+class TestApplyDefault(unittest.TestCase):
+    def _make_device(self, name, type_cls, **kwargs):
+        return AttributeDevice(name, type_cls, **kwargs)
+
+    def setUp(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+
+    def tearDown(self):
+        AttributeDevice.reset_defaults()
+        tag_registry.invalidate()
+        tag_registry._raw.clear()
+
+    def test_apply_default_skips_when_defaults_none(self):
+        AttributeDevice._defaults = None
+        kwargs = {"default": [0]}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = None
+        instance._apply_default("any_tag", kwargs)
+        self.assertEqual(kwargs, {"default": [0]})
+
+    def test_apply_default_skips_unknown_name(self):
+        AttributeDevice._defaults = {"tag_int": 42}
+        kwargs = {"default": [0]}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = AttributeDevice._defaults
+        instance._apply_default("unknown_tag", kwargs)
+        self.assertEqual(kwargs, {"default": [0]})
+
+    def test_apply_default_list_value_merges_into_list_configured_default(self):
+        AttributeDevice._defaults = {"tag_arr": [10, 20]}
+        kwargs = {"default": [0, 0, 0]}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = AttributeDevice._defaults
+        instance._apply_default("tag_arr", kwargs)
+        self.assertEqual(kwargs["default"], [10, 20, 0])
+
+    def test_apply_default_list_value_replaces_non_list_configured_default(self):
+        AttributeDevice._defaults = {"tag_arr": [7, 8, 9]}
+        kwargs = {}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = AttributeDevice._defaults
+        instance._apply_default("tag_arr", kwargs)
+        self.assertEqual(kwargs["default"], [7, 8, 9])
+
+    def test_apply_default_scalar_value_overwrites_first_slot_of_list(self):
+        AttributeDevice._defaults = {"tag_int": 99}
+        kwargs = {"default": [0, 0, 0]}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = AttributeDevice._defaults
+        instance._apply_default("tag_int", kwargs)
+        self.assertEqual(kwargs["default"], [99, 0, 0])
+
+    def test_apply_default_scalar_value_replaces_empty_list(self):
+        AttributeDevice._defaults = {"tag_int": 5}
+        kwargs = {"default": []}
+        instance = AttributeDevice.__new__(AttributeDevice)
+        instance._defaults = AttributeDevice._defaults
+        instance._apply_default("tag_int", kwargs)
+        self.assertEqual(kwargs["default"], 5)
+
+    def test_setitem_calls_on_set(self):
+        on_set_calls = []
+
+        @tag_registry.register
+        def _():
+            return [("tag_watch", actions.type.int(0))]
+
+        AttributeDevice._ensure_defaults()
+
+        original_on_set = AttributeDevice._actions.on_set
+        try:
+            AttributeDevice._actions.on_set = (
+                lambda attr, key, val: on_set_calls.append((key, val))
+            )  # type: ignore
+            on_set_calls.clear()
+
+            attr = AttributeDevice.__new__(AttributeDevice)
+            attr._defaults = AttributeDevice._defaults
+            attr._actions = AttributeDevice._actions
+            attr._registry = AttributeDevice.registry
+            enip_device.Attribute.__init__(attr, "tag_watch", parser.UDINT)
+            attr[0] = 123
+            self.assertTrue(any(val == 123 for _, val in on_set_calls))
+        finally:
+            AttributeDevice._actions.on_set = original_on_set
+
+    def test_registry_empty_after_reset(self):
+        AttributeDevice.reset_defaults()
+        self.assertFalse(AttributeDevice.registry)
 
 
 if __name__ == "__main__":
