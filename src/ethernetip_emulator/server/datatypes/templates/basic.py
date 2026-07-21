@@ -13,6 +13,10 @@ class Basic:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
+    @staticmethod
+    def type_validator(v: Any) -> Any:
+        return v
+
     def on_set_hook(
         self, tag_name: str, attr: Any, key: slice, value: List[Any]
     ) -> None:
@@ -35,4 +39,5 @@ class Basic:
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
+        self.type_validator(value if not isinstance(value, list) else value[0])
         data_tag[key] = value if isinstance(value, list) else [value]
