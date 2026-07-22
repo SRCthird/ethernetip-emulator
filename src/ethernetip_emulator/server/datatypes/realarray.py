@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 @actions.datatype
-class RealArray(templates.NumericArray):
+class RealArray(templates.RealArray):
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
