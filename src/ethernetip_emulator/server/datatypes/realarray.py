@@ -12,6 +12,7 @@ from ..tag_specs import tag_registry
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class RealArray(templates.NumericArray):
     def __init__(self, parent: AttributeActions):
@@ -19,14 +20,14 @@ class RealArray(templates.NumericArray):
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple):
+        if not isinstance(v, list):
             raise TypeError(
-                f"REALARRAY default must be a tuple of float, got {type(v).__name__!r}: {v!r}"
+                f"REALARRAY default must be a list of float, got {type(v).__name__!r}: {v!r}"
             )
         if len(v) == 0:
             raise ValueError("REALARRAY values must not be empty")
         try:
-            return tuple(float(i) for i in v)
+            return [float(i) for i in v]
         except (TypeError, ValueError) as exc:
             raise TypeError(
                 f"REAL default must be numeric, got {type(v).__name__!r}: {v!r}"
@@ -35,6 +36,4 @@ class RealArray(templates.NumericArray):
     @staticmethod
     @tag_registry.expander("REALARRAY")
     def _(name: str, preset):
-        return [
-            (f"{name}", TypeSpec(f"REAL[{len(preset)}]", list(preset)))
-        ]
+        return [(f"{name}", TypeSpec(f"REAL[{len(preset)}]", list(preset)))]

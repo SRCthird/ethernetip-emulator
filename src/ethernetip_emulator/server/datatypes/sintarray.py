@@ -12,6 +12,7 @@ from ..tag_specs import tag_registry
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class SintArray(templates.NumericArray):
     def __init__(self, parent: AttributeActions):
@@ -19,21 +20,23 @@ class SintArray(templates.NumericArray):
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple):
+        if not isinstance(v, list):
             raise TypeError(
-                f"SINTARRAY default values must be a tuple of int, got {type(v).__name__!r}: {v!r}"
+                f"SINTARRAY default values must be a list of int, got {type(v).__name__!r}: {v!r}"
             )
         if len(v) == 0:
-            raise ValueError(
-                f"SINTARRAY values must not be empty"
-            )
+            raise ValueError(f"SINTARRAY values must not be empty")
         not_int = [i for i, n in enumerate(v) if not isinstance(n, int)]
         if not_int:
             raise TypeError(
                 f"SINTARRAY values must all be int; non-int at indices {not_int}: "
                 f"{[v[i] for i in not_int]!r}"
             )
-        out_of_range = [i for i, n in enumerate(v) if not (actions.sint.MIN <= n <= actions.sint.MAX)]
+        out_of_range = [
+            i
+            for i, n in enumerate(v)
+            if not (actions.sint.MIN <= n <= actions.sint.MAX)
+        ]
         if out_of_range:
             raise ValueError(
                 f"SINTARRAY values outside [{actions.sint.MIN}, {actions.sint.MAX}] at indices {out_of_range}: "
@@ -41,10 +44,7 @@ class SintArray(templates.NumericArray):
             )
         return v
 
-
     @staticmethod
     @tag_registry.expander("SINTARRAY")
     def _(name: str, preset):
-        return [
-            (f"{name}", TypeSpec(f"SINT[{len(preset)}]", list(preset)))
-        ]
+        return [(f"{name}", TypeSpec(f"SINT[{len(preset)}]", list(preset)))]

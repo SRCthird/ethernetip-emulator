@@ -12,6 +12,7 @@ from ..tag_specs import tag_registry
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class SstringArray(templates.StringArray):
     def __init__(self, parent: AttributeActions):
@@ -19,14 +20,12 @@ class SstringArray(templates.StringArray):
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple):
+        if not isinstance(v, list):
             raise TypeError(
-                f"SSTRINGARRAY default values must be a tuple of str, got {type(v).__name__!r}: {v!r}"
+                f"SSTRINGARRAY default values must be a list of str, got {type(v).__name__!r}: {v!r}"
             )
         if len(v) == 0:
-            raise ValueError(
-                f"SSTRINGARRAY values must not be empty"
-            )
+            raise ValueError(f"SSTRINGARRAY values must not be empty")
         bad = [i for i, item in enumerate(v) if not isinstance(item, str)]
         if bad:
             raise TypeError(
@@ -35,10 +34,7 @@ class SstringArray(templates.StringArray):
             )
         return v
 
-
     @staticmethod
     @tag_registry.expander("SSTRINGARRAY")
     def _(name: str, preset):
-        return [
-            (f"{name}", TypeSpec(f"SSTRING[{len(preset)}]", list(preset)))
-        ]
+        return [(f"{name}", TypeSpec(f"SSTRING[{len(preset)}]", list(preset)))]
