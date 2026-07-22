@@ -58,10 +58,10 @@ class TestDatatypeBoolRegistry(unittest.TestCase):
         with self.subTest(number=2):
             with self.assertRaises(ValueError):
                 tag_registry.register(
-                    lambda: [("tag_bool_array", actions.type.BOOLARRAY((42, 42)))]
+                    lambda: [("tag_bool_array", actions.type.BOOLARRAY([42, 42]))]
                 )
 
-    def test_type_validator_invalid_non_tuple(self):
+    def test_type_validator_invalid_non_list(self):
         with self.assertRaises(ValueError):
             tag_registry.register(
                 lambda: [("tag_bool_array", actions.type.BOOLARRAY(True))]
@@ -70,7 +70,7 @@ class TestDatatypeBoolRegistry(unittest.TestCase):
     def test_type_validator_invalid_empty_tuple(self):
         with self.assertRaises(ValueError):
             tag_registry.register(
-                lambda: [("tag_bool_array", actions.type.BOOLARRAY(()))]
+                lambda: [("tag_bool_array", actions.type.BOOLARRAY([]))]
             )
 
 
@@ -82,7 +82,7 @@ class TestDatatypeBoolActions(unittest.TestCase):
         def _():
             return [
                 ("tag_bool", actions.type.BOOL(True)),
-                ("tag_bool_array", actions.type.BOOLARRAY((True, True, True, True))),
+                ("tag_bool_array", actions.type.BOOLARRAY([True, True, True, True])),
             ]
 
         cls.server_control, cls.thread = _start_server(next_port())

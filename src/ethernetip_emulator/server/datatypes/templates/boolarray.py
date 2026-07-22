@@ -8,16 +8,23 @@ from typing import TYPE_CHECKING, Any, List
 if TYPE_CHECKING:
     from ...actions import AttributeActions
 
+
 class BoolArray:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: List[Any]) -> None:
+    @staticmethod
+    def type_validator(v: Any) -> Any:
+        return v
+
+    def on_set_hook(
+        self, tag_name: str, attr: Any, key: slice, value: List[Any]
+    ) -> None:
         pass
 
     def on_change(self, name_prefix: str, callback=None, *, key=None, defer=False):
         if key is None:
-            new_key = self._full_slice(name_prefix) or slice(0,1)
+            new_key = self._full_slice(name_prefix) or slice(0, 1)
         else:
             new_key = key
         return self.parent.on_change(name_prefix, callback, key=new_key, defer=defer)
@@ -29,12 +36,16 @@ class BoolArray:
             return []
         return [bool(v) for v in data_tag[key]]
 
-    def set_val(self, name_prefix: str, value: List[bool], key: slice | None = None) -> None:
+    def set_val(
+        self, name_prefix: str, value: List[bool], key: slice | None = None
+    ) -> None:
         key = key or self._full_slice(name_prefix)
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
-        data_tag[key] = [int(v) for v in (value if isinstance(value, list) else [value])]
+        v = [int(v) for v in (value if isinstance(value, list) else [value])]
+        self.type_validator(v)
+        data_tag[key] = v
 
     def get_bit(self, name_prefix: str, index: int) -> bool | None:
         data_tag = self.parent._lookup(name_prefix)
@@ -67,7 +78,7 @@ class BoolArray:
         lst = self.get_val(name_prefix, key)
         for i, item in enumerate(lst):
             if item == 0:
-                self.set_val(name_prefix, [value], slice(i,i+1))
+                self.set_val(name_prefix, [value], slice(i, i + 1))
                 return True
         return False
 
@@ -89,7 +100,9 @@ class BoolArray:
                 return lst[i]
         return None
 
-    def insert(self, name_prefix: str, index: int, value: bool, key: slice | None = None) -> bool:
+    def insert(
+        self, name_prefix: str, index: int, value: bool, key: slice | None = None
+    ) -> bool:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         if lst[-1] != 0:
@@ -98,13 +111,15 @@ class BoolArray:
         self.set_val(name_prefix, [value], slice(index, index + 1))
         return True
 
-    def remove(self, name_prefix: str, index: int, key: slice | None = None) -> int | None:
+    def remove(
+        self, name_prefix: str, index: int, key: slice | None = None
+    ) -> int | None:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         if lst[index] == 0:
             return None
         removed = lst[index]
-        self.set_val(name_prefix, lst[index + 1:], slice(index, len(lst) - 1))
+        self.set_val(name_prefix, lst[index + 1 :], slice(index, len(lst) - 1))
         self.set_val(name_prefix, [False], slice(len(lst) - 1, len(lst)))
         return removed
 
@@ -138,4 +153,3 @@ class BoolArray:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         self.set_val(name_prefix, [not v for v in lst], slice(0, len(lst)))
-

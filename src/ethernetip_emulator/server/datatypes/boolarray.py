@@ -12,6 +12,7 @@ from ..tag_specs import tag_registry
 if TYPE_CHECKING:
     from src.ethernetip_emulator.server.actions import AttributeActions
 
+
 @actions.datatype
 class BoolArray(templates.BoolArray):
     def __init__(self, parent: AttributeActions):
@@ -19,13 +20,17 @@ class BoolArray(templates.BoolArray):
 
     @staticmethod
     def type_validator(v: Any):
-        if not isinstance(v, tuple):
+        if not isinstance(v, list):
             raise TypeError(
-                f"BOOLARRAY default must be a tuple of bool, got {type(v).__name__!r}: {v!r}"
+                f"BOOLARRAY default must be a list of bool, got {type(v).__name__!r}: {v!r}"
             )
         if len(v) == 0:
             raise ValueError("BOOLARRAY values must not be empty")
-        not_bool = [i for i, n in enumerate(v) if not isinstance(n, bool)]
+        not_bool = [
+            i
+            for i, n in enumerate(v)
+            if not isinstance(n, bool) and (not isinstance(n, int) or n not in [0, 1])
+        ]
         if not_bool:
             raise TypeError(
                 f"BOOLARRAY values must all be bool; non-bool at indices {not_bool}: "
@@ -36,6 +41,4 @@ class BoolArray(templates.BoolArray):
     @staticmethod
     @tag_registry.expander("BOOLARRAY")
     def _(name: str, preset):
-        return [
-            (f"{name}", TypeSpec(f"BOOL[{len(preset)}]", list(preset)))
-        ]
+        return [(f"{name}", TypeSpec(f"BOOL[{len(preset)}]", list(preset)))]
