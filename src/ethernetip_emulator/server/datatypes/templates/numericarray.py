@@ -75,14 +75,14 @@ class NumericArray:
                 return True
         return False
 
-    def pop(self, name_prefix: str, key: slice | None = None) -> int:
+    def pop(self, name_prefix: str, key: slice | None = None) -> int | None:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         for i in range(len(lst) - 1, -1, -1):
             if lst[i] != 0:
                 self.set_val(name_prefix, [0], slice(i, i + 1))
                 return lst[i]
-        return 0
+        return None
 
     def insert(
         self, name_prefix: str, index: int, value: int, key: slice | None = None
