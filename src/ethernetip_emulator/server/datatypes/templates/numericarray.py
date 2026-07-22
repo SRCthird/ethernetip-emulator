@@ -36,7 +36,9 @@ class NumericArray:
             return []
         return data_tag[key]
 
-    def set_val(self, name_prefix: str, value: List[int], key: slice | None) -> None:
+    def set_val(
+        self, name_prefix: str, value: List[int], key: slice | None = None
+    ) -> None:
         key = key or self._full_slice(name_prefix)
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
