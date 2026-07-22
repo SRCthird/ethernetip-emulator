@@ -9,21 +9,28 @@ if TYPE_CHECKING:
     from ...actions import AttributeActions
 
 _ZERO = 0.0
-_TOL  = 1e-9
+_TOL = 1e-9
+
 
 class RealArray:
     def __init__(self, parent: AttributeActions):
         self.parent = parent
 
+    @staticmethod
+    def type_validator(v: Any) -> Any:
+        return v
+
     def _is_zero(self, v: float) -> bool:
         return abs(v) < _TOL
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: List[Any]) -> None:
+    def on_set_hook(
+        self, tag_name: str, attr: Any, key: slice, value: List[Any]
+    ) -> None:
         pass
 
     def on_change(self, name_prefix: str, callback=None, *, key=None, defer=False):
         if key is None:
-            new_key = self._full_slice(name_prefix) or slice(0,1)
+            new_key = self._full_slice(name_prefix) or slice(0, 1)
         else:
             new_key = key
         return self.parent.on_change(name_prefix, callback, key=new_key, defer=defer)
@@ -40,7 +47,9 @@ class RealArray:
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
-        data_tag[key] = value if isinstance(value, list) else [value]
+        v = value if isinstance(value, list) else [value]
+        self.type_validator(v)
+        data_tag[key] = v
 
     def size(self, name_prefix: str) -> int | None:
         data_tag = self.parent._lookup(name_prefix)
@@ -79,7 +88,9 @@ class RealArray:
                 return lst[i]
         return None
 
-    def insert(self, name_prefix: str, index: int, value: float, key: slice | None = None) -> bool:
+    def insert(
+        self, name_prefix: str, index: int, value: float, key: slice | None = None
+    ) -> bool:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         if not self._is_zero(lst[-1]):
@@ -88,13 +99,15 @@ class RealArray:
         self.set_val(name_prefix, [value], slice(index, index + 1))
         return True
 
-    def remove(self, name_prefix: str, index: int, key: slice | None = None) -> float | None:
+    def remove(
+        self, name_prefix: str, index: int, key: slice | None = None
+    ) -> float | None:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         if self._is_zero(lst[index]):
             return None
         removed = lst[index]
-        self.set_val(name_prefix, lst[index + 1:], slice(index, len(lst) - 1))
+        self.set_val(name_prefix, lst[index + 1 :], slice(index, len(lst) - 1))
         self.set_val(name_prefix, [_ZERO], slice(len(lst) - 1, len(lst)))
         return removed
 
@@ -110,7 +123,9 @@ class RealArray:
         key = key or self._full_slice(name_prefix)
         return all(self._is_zero(i) for i in self.get_val(name_prefix, key))
 
-    def find(self, name_prefix: str, value: float, key: slice | None = None) -> int | None:
+    def find(
+        self, name_prefix: str, value: float, key: slice | None = None
+    ) -> int | None:
         key = key or self._full_slice(name_prefix)
         lst = self.get_val(name_prefix, key)
         for i, item in enumerate(lst):
