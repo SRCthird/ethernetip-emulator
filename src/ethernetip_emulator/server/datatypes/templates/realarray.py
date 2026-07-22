@@ -20,7 +20,8 @@ class RealArray:
     def type_validator(v: Any) -> Any:
         return v
 
-    def _is_zero(self, v: float) -> bool:
+    @staticmethod
+    def _is_zero(v: float) -> bool:
         return abs(v) < _TOL
 
     def on_set_hook(
