@@ -103,8 +103,11 @@ class TestDatatypeTimerActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
-        actions.timer.reset("TMR")
-        actions.timer.set_preset("TMR", 2000)
+        actions._lookup("TMR.ACC")[slice(0, 1)] = [0]  # type: ignore
+        actions._lookup("TMR.EN")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("TMR.TT")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("TMR.DN")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("TMR.PRE")[slice(0, 1)] = [2000]  # type: ignore
         time.sleep(0.15)
 
     def test_get_preset_default(self):

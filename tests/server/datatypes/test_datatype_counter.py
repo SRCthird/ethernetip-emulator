@@ -41,11 +41,6 @@ def _stop_server(server_control, thread) -> None:
     AttributeDevice.reset_defaults()
 
 
-# ---------------------------------------------------------------------------
-# TestDatatypeCounterRegistry
-# ---------------------------------------------------------------------------
-
-
 class TestDatatypeCounterRegistry(unittest.TestCase):
 
     @classmethod
@@ -95,11 +90,6 @@ class TestDatatypeCounterRegistry(unittest.TestCase):
         tag_registry._raw.clear()
 
 
-# ---------------------------------------------------------------------------
-# TestDatatypeCounterActions
-# ---------------------------------------------------------------------------
-
-
 class TestDatatypeCounterActions(unittest.TestCase):
 
     @classmethod
@@ -113,9 +103,12 @@ class TestDatatypeCounterActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
-        actions.counter.reset("CTR")
-
-    # --- getters / setters --------------------------------------------------
+        actions._lookup("CTR.ACC")[slice(0, 1)] = [0]  # type: ignore
+        actions._lookup("CTR.DN")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("CTR.OV")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("CTR.UN")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("CTR.RES")[slice(0, 1)] = [False]  # type: ignore
+        actions._lookup("CTR.PRE")[slice(0, 1)] = [3]  # type: ignore
 
     def test_get_preset_value(self):
         self.assertEqual(actions.counter.get_preset_value("CTR"), 3)
@@ -144,8 +137,6 @@ class TestDatatypeCounterActions(unittest.TestCase):
 
     def test_get_reset_bit_starts_false(self):
         self.assertFalse(actions.counter.get_reset_bit("CTR"))
-
-    # --- increment ----------------------------------------------------------
 
     def test_increment_increases_acc(self):
         actions.counter.increment("CTR")
@@ -222,7 +213,6 @@ class TestDatatypeCounterActions(unittest.TestCase):
         self.assertFalse(actions.counter.get_reset_bit("CTR"))
 
     def test_on_set_hook_triggers_reset_on_res_tag(self):
-        """Writing True to CTR.RES must reset the counter via on_set_hook."""
         actions.counter._set_accumulated_value("CTR", 5)
         actions.counter._set_done_bit("CTR", True)
         actions.bool.set_val("CTR.RES", True)
@@ -285,8 +275,6 @@ class TestDatatypeCounterActions(unittest.TestCase):
 
         actions.counter._set_reset_bit("CTR", True)
         self.assertTrue(fired[-1])
-
-    # --- start / run_worker -------------------------------------------------
 
     def test_start_increments_over_time(self):
         with actions:
@@ -392,7 +380,6 @@ class TestDatatypeCounterActions(unittest.TestCase):
         original_sleep = actions.counter.parent._sleep
 
         def capture_and_stop(period):
-            # Capture state at the moment of sleep — OV is True, ACC is 0
             ov_snapshot.append(actions.counter.get_overflow_bit("CTR"))
             acc_snapshot.append(actions.counter.get_accumulated_value("CTR"))
             actions.counter.parent._stop.set()
@@ -411,7 +398,6 @@ class TestDatatypeCounterActions(unittest.TestCase):
             actions.counter.parent._sleep = original_sleep
             actions.counter.parent._stop.clear()
 
-        # OV was True and ACC was 0 at the moment of the overflow sleep
         self.assertTrue(ov_snapshot[0])
         self.assertEqual(acc_snapshot[0], 0)
 
