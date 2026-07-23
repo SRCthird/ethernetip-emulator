@@ -2,8 +2,8 @@
 # All rights reserved
 
 # example/basic_datatypes/tags.py
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import actions
 
 
 @tag_registry.register

@@ -4,7 +4,7 @@
 # test/server/datatypes/templates/test_template_stringarray.py
 import unittest
 
-from src.ethernetip_emulator.server.datatypes.templates import StringArray
+from ethernetip_emulator.server.datatypes.templates import StringArray
 
 
 class TestStringArrayTemplate(unittest.TestCase):

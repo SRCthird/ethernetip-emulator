@@ -4,7 +4,7 @@
 # test/server/datatypes/templates/test_template_realarray.py
 import unittest
 
-from src.ethernetip_emulator.server.datatypes.templates import RealArray
+from ethernetip_emulator.server.datatypes.templates import RealArray
 
 
 class TestRealArrayTemplate(unittest.TestCase):

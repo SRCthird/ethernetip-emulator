@@ -5,8 +5,8 @@
 import cpppo
 from cpppo.server.enip.main import main as enip_main
 
-from src.ethernetip_emulator.server.device import AttributeDevice
-from src.ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import AttributeDevice
+from ethernetip_emulator.server.tag_specs import tag_registry
 
 if __name__ == "__main__":
     server_control = cpppo.apidict(timeout=1.0)

@@ -3,7 +3,7 @@
 
 # example/raspberry_pi/actions.py
 
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import actions
 
 actions.increment.start(tag_name="O_INCR", wrap=actions.usint.MAX)
 

@@ -4,7 +4,7 @@
 # test/server/datatypes/templates/test_template_basic.py
 import unittest
 
-from src.ethernetip_emulator.server.datatypes.templates import Basic
+from ethernetip_emulator.server.datatypes.templates import Basic
 
 
 class TestBasicTemplate(unittest.TestCase):

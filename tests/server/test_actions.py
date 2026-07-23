@@ -8,7 +8,7 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock, call
 
-from src.ethernetip_emulator.server.actions import (
+from ethernetip_emulator.server.actions import (
     AttributeActions,
     TypeNamespace,
     TypeSpec,
@@ -621,7 +621,7 @@ class TestOnSet(unittest.TestCase):
         aa.bind(FakeDevice)
 
         from unittest.mock import patch
-        from src.ethernetip_emulator.server import tag_specs
+        from ethernetip_emulator.server import tag_specs
 
         with patch.object(tag_specs.tag_registry, "build_type_map", return_value={}):
             aa.on_set(attr, slice(0, 1), [0])
@@ -647,7 +647,7 @@ class TestOnSet(unittest.TestCase):
         self.aa.bind(FakeDevice)
 
         from unittest.mock import patch
-        from src.ethernetip_emulator.server import tag_specs
+        from ethernetip_emulator.server import tag_specs
 
         with patch.object(
             tag_specs.tag_registry,

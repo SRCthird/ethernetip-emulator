@@ -3,4 +3,4 @@
 
 # example/orange_pi/actions.py
 
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import actions

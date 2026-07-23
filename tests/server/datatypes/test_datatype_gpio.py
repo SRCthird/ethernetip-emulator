@@ -11,10 +11,10 @@ import time
 import cpppo
 from cpppo.server.enip.main import main as enip_main
 
-import src.ethernetip_emulator.server.datatypes.gpio as gpio_mod
-from src.ethernetip_emulator.server.device import AttributeDevice
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.device import actions
+import ethernetip_emulator.server.datatypes.gpio as gpio_mod
+from ethernetip_emulator.server.device import AttributeDevice
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import actions
 from tests.server import next_port
 
 
@@ -48,12 +48,12 @@ class TestGpioImportError(unittest.TestCase):
     def test_type_validator_raises_on_importerror(self):
         with patch.dict("sys.modules", {"RPi.GPIO": None, "OPi.GPIO": None}):
             # Re-import to pick up ImportError path
-            import src.ethernetip_emulator.server.datatypes.gpio as gpio_mod  # noqa: F401
+            import ethernetip_emulator.server.datatypes.gpio as gpio_mod  # noqa: F401
 
             importlib.reload(gpio_mod)
             self.assertTrue(hasattr(gpio_mod, "Gpio"))
             with self.assertRaises(TypeError) as cm:
-                gpio_mod.Gpio.type_validator((0, True, "in"))
+                gpio_mod.Gpio.type_validator((0, True, "in"))  # type: ignore
             self.assertIn("GPIO is not a usable datatype", str(cm.exception))
 
 

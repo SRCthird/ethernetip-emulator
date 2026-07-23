@@ -15,10 +15,10 @@ from cpppo.server.enip import device as enip_device
 import cpppo.server.enip.parser as parser
 
 
-from src.ethernetip_emulator.server.actions import TypeSpec
-from src.ethernetip_emulator.server.device import AttributeDevice
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.actions import TypeSpec
+from ethernetip_emulator.server.device import AttributeDevice
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import actions
 
 from tests.server import next_port
 

@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# test/server/datatypes/test_datatype_gpio.py
+# test/server/datatypes/mock/test_datatype_gpio.py
 import sys
 import threading
 import types
@@ -33,9 +33,9 @@ for _pkg, _mod_obj in [
 ]:
     sys.modules.setdefault(_pkg, _mod_obj)
 
-from src.ethernetip_emulator.server.datatypes import gpio as _gpio_module
-from src.ethernetip_emulator.server.datatypes.gpio import Gpio, _import_gpio
-from src.ethernetip_emulator.server.actions import AttributeActions, TypeNamespace
+from ethernetip_emulator.server.datatypes import gpio as _gpio_module
+from ethernetip_emulator.server.datatypes.gpio import Gpio, _import_gpio
+from ethernetip_emulator.server.actions import AttributeActions, TypeNamespace
 
 
 def _make_actions(**kwargs) -> AttributeActions:
@@ -539,7 +539,7 @@ class TestExit(unittest.TestCase):
 
 class TestGpioUnavailableFallback(unittest.TestCase):
     def test_stub_type_validator_raises(self):
-        from src.ethernetip_emulator.server.actions import AttributeActions
+        from ethernetip_emulator.server.actions import AttributeActions
 
         class StubGpio:
             def __init__(self, parent):
@@ -558,8 +558,8 @@ class TestGpioUnavailableFallback(unittest.TestCase):
 
 class TestGpioExpander(unittest.TestCase):
     def _expand(self, preset, platform="RPi"):
-        import src.ethernetip_emulator.server.datatypes.gpio as _gm
-        import src.ethernetip_emulator.server.actions as _act
+        import ethernetip_emulator.server.datatypes.gpio as _gm
+        import ethernetip_emulator.server.actions as _act
 
         gpio_mod = _MOCK_RPI_MODULE if platform == "RPi" else _MOCK_OPI_MODULE
         with patch.object(_gm, "_import_gpio", return_value=(gpio_mod, platform)):
@@ -569,7 +569,7 @@ class TestGpioExpander(unittest.TestCase):
     def test_rpi_pin_tag_is_dint(self):
         tags = self._expand((18, False, "out"), platform="RPi")
         pin_entry = next(t for t in tags if t[0] == "MY_GPIO.PIN")
-        from src.ethernetip_emulator.server.actions import TypeNamespace
+        from ethernetip_emulator.server.actions import TypeNamespace
 
         self.assertEqual(pin_entry[1].type_name, "DINT")
 

@@ -4,7 +4,7 @@
 # test/server/datatypes/templates/test_template_boolarray.py
 import unittest
 
-from src.ethernetip_emulator.server.datatypes.templates import BoolArray
+from ethernetip_emulator.server.datatypes.templates import BoolArray
 
 
 class TestBoolArrayTemplate(unittest.TestCase):

@@ -5,7 +5,7 @@
 
 import random
 from time import sleep
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import actions
 
 
 @actions.sint.on_change("I_SerialNumber")

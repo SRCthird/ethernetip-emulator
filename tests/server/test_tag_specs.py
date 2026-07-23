@@ -6,7 +6,7 @@ import threading
 import unittest
 from unittest.mock import MagicMock
 
-from src.ethernetip_emulator.server.tag_specs import TagRegistry
+from ethernetip_emulator.server.tag_specs import TagRegistry
 from tests.server import next_port
 
 

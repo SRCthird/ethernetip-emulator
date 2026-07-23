@@ -4,11 +4,11 @@
 # example/mfg_line/datatype/mfgcontainer.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List, Tuple
-from src.ethernetip_emulator.server.tag_specs import tag_registry
-from src.ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import actions
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ethernetip_emulator.server.actions import AttributeActions
 
 
 def _is_integer(string_value):

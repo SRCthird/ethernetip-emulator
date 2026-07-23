@@ -4,20 +4,23 @@ version = "0.1"
 authors = [
   { name="Stevie Chryn", email="srcthird@gmail.com" },
 ]
-description = "A small Python-based Ethernet/IP emulation template built on top of cpppo that exposes a set of tags (as attributes) and supports simple side-effect behaviors (like mirroring tags, background incrementing)."
+description = "An Ethernet/IP emulation template built on top of cpppo that exposes a set of tags (as attributes) and supports simple side-effect behaviors (like mirroring tags, background incrementing)."
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
-    "cpppo>=5.2.5",
+  "cpppo>=5.2.5",
 ]
 [project.optional-dependencies]
 dev = [
-    "black>=26.1.0",
+  "coverage>=7.13.4",
+  "black>=26.1.0",
+  "OPi.GPIO>=0.5.2",
+  "RPi.GPIO>=0.7.1",
 ]
 [project.urls]
 "Homepage" = "https://github.com/srcthird/ethernetip-emulator"
