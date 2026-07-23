@@ -232,5 +232,3 @@ class Timer:
         actions.bool.set_val(f"{tag_prefix}.EN", False)
         actions.bool.set_val(f"{tag_prefix}.TT", False)
         actions.bool.set_val(f"{tag_prefix}.DN", False)
-        actions.bool.set_val(f"{tag_prefix}.EN", False)
-        actions.bool.set_val(f"{tag_prefix}.RES", False)
