@@ -93,7 +93,7 @@ class TestDatatypeBoolActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
-        actions._lookup("tag_bool")[slice(0, 1)] = [False]  # type: ignore 
+        actions._lookup("tag_bool")[slice(0, 1)] = [False]  # type: ignore
         actions._lookup("tag_bool_array")[slice(0, 4)] = [False, False, False, False]  # type: ignore
 
     def test_get_val(self):
