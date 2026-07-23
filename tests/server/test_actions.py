@@ -28,7 +28,6 @@ def _make_attr(name: str, value: Any = None) -> MagicMock:
     return attr
 
 
-
 class TestTypeSpec(unittest.TestCase):
 
     def test_stores_type_name_uppercased(self):

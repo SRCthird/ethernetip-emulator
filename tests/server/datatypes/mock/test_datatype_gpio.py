@@ -12,24 +12,24 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 def _make_mock_gpio_module(platform_name: str) -> MagicMock:
     mod = MagicMock(name=f"{platform_name}.GPIO")
-    mod.BCM   = "BCM"
+    mod.BCM = "BCM"
     mod.SUNXI = "SUNXI"
-    mod.IN    = "IN"
-    mod.OUT   = "OUT"
+    mod.IN = "IN"
+    mod.OUT = "OUT"
     mod.BOARD = "BOARD"
     pwm_instance = MagicMock(name="PWMInstance")
     mod.PWM.return_value = pwm_instance
     return mod
 
 
-_MOCK_RPI_MODULE   = _make_mock_gpio_module("RPi")
-_MOCK_OPI_MODULE   = _make_mock_gpio_module("OPi")
+_MOCK_RPI_MODULE = _make_mock_gpio_module("RPi")
+_MOCK_OPI_MODULE = _make_mock_gpio_module("OPi")
 
 for _pkg, _mod_obj in [
-    ("RPi",        types.ModuleType("RPi")),
-    ("RPi.GPIO",   _MOCK_RPI_MODULE),
-    ("OPi",        types.ModuleType("OPi")),
-    ("OPi.GPIO",   _MOCK_OPI_MODULE),
+    ("RPi", types.ModuleType("RPi")),
+    ("RPi.GPIO", _MOCK_RPI_MODULE),
+    ("OPi", types.ModuleType("OPi")),
+    ("OPi.GPIO", _MOCK_OPI_MODULE),
 ]:
     sys.modules.setdefault(_pkg, _mod_obj)
 
@@ -51,8 +51,9 @@ def _make_attr(name: str, value: Any = None) -> MagicMock:
     return attr
 
 
-def _build_gpio(actions_inst: AttributeActions | None = None,
-                platform: str = "RPi") -> tuple[Gpio, MagicMock]:
+def _build_gpio(
+    actions_inst: AttributeActions | None = None, platform: str = "RPi"
+) -> tuple[Gpio, MagicMock]:
     if actions_inst is None:
         actions_inst = _make_actions()
     gpio_mod = _MOCK_RPI_MODULE if platform == "RPi" else _MOCK_OPI_MODULE
@@ -90,6 +91,7 @@ class TestImportGpio(unittest.TestCase):
             with self.assertRaises(ImportError):
                 _import_gpio()
 
+
 class TestGpioInit(unittest.TestCase):
     def test_setmode_bcm_for_rpi(self):
         g, gpio_mod = _build_gpio(platform="RPi")
@@ -107,10 +109,13 @@ class TestGpioInit(unittest.TestCase):
         g, _ = _build_gpio()
         self.assertEqual(g._pwm_instances, {})
 
+
 class TestTypeValidator(unittest.TestCase):
     def _validate(self, v, platform="RPi"):
         gpio_mod = _MOCK_RPI_MODULE if platform == "RPi" else _MOCK_OPI_MODULE
-        with patch.object(_gpio_module, "_import_gpio", return_value=(gpio_mod, platform)):
+        with patch.object(
+            _gpio_module, "_import_gpio", return_value=(gpio_mod, platform)
+        ):
             return Gpio.type_validator(v)
 
     def test_rejects_non_tuple(self):
@@ -171,28 +176,27 @@ class TestTypeValidator(unittest.TestCase):
 
 
 class TestSetup(unittest.TestCase):
-    def _make_gpio_with_registry(self, platform="RPi",
-                                  mode="out", pin=18, duty=0.0):
+    def _make_gpio_with_registry(self, platform="RPi", mode="out", pin=18, duty=0.0):
         aa = _make_actions()
         g, gpio_mod = _build_gpio(aa, platform)
         setup_attr = [False]
-        pin_attr   = [pin]
-        mode_attr  = [mode]
+        pin_attr = [pin]
+        mode_attr = [mode]
         value_attr = [duty]
 
         if platform == "OPi":
             registry = {
-                "LED.SETUP":        setup_attr,
-                "LED.PIN.DATA":     pin_attr,
-                "LED.MODE.DATA":    mode_attr,
-                "LED.VALUE":        value_attr,
+                "LED.SETUP": setup_attr,
+                "LED.PIN.DATA": pin_attr,
+                "LED.MODE.DATA": mode_attr,
+                "LED.VALUE": value_attr,
             }
         else:
             registry = {
-                "LED.SETUP":        setup_attr,
-                "LED.PIN":          pin_attr,
-                "LED.MODE.DATA":    mode_attr,
-                "LED.VALUE":        value_attr,
+                "LED.SETUP": setup_attr,
+                "LED.PIN": pin_attr,
+                "LED.MODE.DATA": mode_attr,
+                "LED.VALUE": value_attr,
             }
         self._fake_device = _bind_registry(aa, registry)
         return g, gpio_mod, setup_attr
@@ -221,7 +225,7 @@ class TestSetup(unittest.TestCase):
 
     def test_setup_skips_if_already_done(self):
         g, gpio_mod, setup_attr = self._make_gpio_with_registry()
-        setup_attr[0] = True   # already set up
+        setup_attr[0] = True  # already set up
         g.setup("LED")
         gpio_mod.setup.assert_not_called()
 
@@ -235,10 +239,13 @@ class TestSetup(unittest.TestCase):
     def test_setup_skips_if_pin_tag_none(self):
         aa = _make_actions()
         g, gpio_mod = _build_gpio(aa)
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     [False],
-            "LED.MODE.DATA": ["out"],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": [False],
+                "LED.MODE.DATA": ["out"],
+            },
+        )
         g.setup("LED")
         gpio_mod.setup.assert_not_called()
 
@@ -248,8 +255,9 @@ class TestSetup(unittest.TestCase):
         self.assertEqual(g._pins["LED"], 22)
 
     def test_setup_opi_reads_pin_data(self):
-        g, gpio_mod, _ = self._make_gpio_with_registry(platform="OPi",
-                                                        mode="out", pin="PA0")
+        g, gpio_mod, _ = self._make_gpio_with_registry(
+            platform="OPi", mode="out", pin="PA0"
+        )
         g.setup("LED")
         gpio_mod.setup.assert_called_once_with("PA0", gpio_mod.OUT)
 
@@ -263,6 +271,7 @@ class TestSetup(unittest.TestCase):
         g.setup("LED")
         gpio_mod.PWM.return_value.start.assert_called_once_with(0.0)
 
+
 class TestOnSetHook(unittest.TestCase):
     def _make_wired_gpio(self, mode="out", pin=18, platform="RPi"):
         aa = _make_actions()
@@ -270,18 +279,21 @@ class TestOnSetHook(unittest.TestCase):
         g._pins["LED"] = pin
 
         setup_attr = [True]
-        mode_attr  = [mode]
+        mode_attr = [mode]
 
         if platform == "OPi":
             pin_key = "LED.PIN.DATA"
         else:
             pin_key = "LED.PIN"
 
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     setup_attr,
-            pin_key:         [pin],
-            "LED.MODE.DATA": mode_attr,
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": setup_attr,
+                pin_key: [pin],
+                "LED.MODE.DATA": mode_attr,
+            },
+        )
         return g, gpio_mod
 
     def test_ignores_non_value_tags(self):
@@ -338,6 +350,7 @@ class TestOnSetHook(unittest.TestCase):
         g, gpio_mod = self._make_wired_gpio(mode="pwm", pin=12)
         g.on_set_hook("LED.VALUE", MagicMock(), slice(0, 1), [50.0])
 
+
 class TestReadWritePin(unittest.TestCase):
     def test_read_pin_returns_gpio_input(self):
         aa = _make_actions()
@@ -365,6 +378,7 @@ class TestReadWritePin(unittest.TestCase):
         g, _ = _build_gpio(aa)
         self._fake_device = _bind_registry(aa, {})
         g.write_pin("LED", True)
+
 
 class TestOnChange(unittest.TestCase):
     def test_delegates_to_parent_on_change(self):
@@ -398,7 +412,9 @@ class TestStartPolling(unittest.TestCase):
         gpio_mod.input.return_value = 0
         value_attr = _make_attr("BTN.VALUE", 0)
         setup_attr = [True]
-        self._fake_device = _bind_registry(aa, {"BTN.SETUP": setup_attr, "BTN.VALUE": value_attr})
+        self._fake_device = _bind_registry(
+            aa, {"BTN.SETUP": setup_attr, "BTN.VALUE": value_attr}
+        )
 
         with aa:
             g.start_polling("BTN", period=0.01)
@@ -413,9 +429,13 @@ class TestPollPin(unittest.TestCase):
 
         written = []
         value_attr = MagicMock()
-        value_attr.__setitem__ = MagicMock(side_effect=lambda k, v: written.append(v[0]))
+        value_attr.__setitem__ = MagicMock(
+            side_effect=lambda k, v: written.append(v[0])
+        )
         setup_attr = [True]
-        fake_device = _bind_registry(aa, {"BTN.SETUP": setup_attr, "BTN.VALUE": value_attr})
+        fake_device = _bind_registry(
+            aa, {"BTN.SETUP": setup_attr, "BTN.VALUE": value_attr}
+        )
 
         call_count = [0]
 
@@ -435,8 +455,9 @@ class TestPollPin(unittest.TestCase):
 
         aa._sleep = fake_sleep
 
-        t = threading.Thread(target=g._poll_pin,
-                              args=("BTN", slice(0, 1), 0.0), daemon=True)
+        t = threading.Thread(
+            target=g._poll_pin, args=("BTN", slice(0, 1), 0.0), daemon=True
+        )
         t.start()
         t.join(timeout=2.0)
         del fake_device
@@ -475,8 +496,9 @@ class TestPollPin(unittest.TestCase):
                 aa._stop.set()
 
         aa._sleep = fake_sleep
-        t = threading.Thread(target=g._poll_pin,
-                              args=("BTN", slice(0, 1), 0.0), daemon=True)
+        t = threading.Thread(
+            target=g._poll_pin, args=("BTN", slice(0, 1), 0.0), daemon=True
+        )
         t.start()
         t.join(timeout=2.0)
 
@@ -533,6 +555,7 @@ class TestGpioUnavailableFallback(unittest.TestCase):
         with self.assertRaises(TypeError):
             StubGpio.type_validator((18, True, "out"))
 
+
 class TestGpioExpander(unittest.TestCase):
     def _expand(self, preset, platform="RPi"):
         import src.ethernetip_emulator.server.datatypes.gpio as _gm
@@ -547,6 +570,7 @@ class TestGpioExpander(unittest.TestCase):
         tags = self._expand((18, False, "out"), platform="RPi")
         pin_entry = next(t for t in tags if t[0] == "MY_GPIO.PIN")
         from src.ethernetip_emulator.server.actions import TypeNamespace
+
         self.assertEqual(pin_entry[1].type_name, "DINT")
 
     def test_opi_pin_tag_is_string(self):
@@ -610,12 +634,15 @@ class TestSetupNoneGuards(unittest.TestCase):
     def _make_gpio_partial(self, *, pin_val, mode_val):
         aa = _make_actions()
         g, gpio_mod = _build_gpio(aa, platform="RPi")
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     [False],
-            "LED.PIN":       [pin_val],
-            "LED.MODE.DATA": [mode_val],
-            "LED.VALUE":     [0],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": [False],
+                "LED.PIN": [pin_val],
+                "LED.MODE.DATA": [mode_val],
+                "LED.VALUE": [0],
+            },
+        )
         return g, gpio_mod
 
     def test_setup_skips_when_pin_value_is_none(self):
@@ -627,12 +654,15 @@ class TestSetupNoneGuards(unittest.TestCase):
         aa = _make_actions()
         g, _ = _build_gpio(aa)
         setup_attr = [False]
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     setup_attr,
-            "LED.PIN":       [None],
-            "LED.MODE.DATA": ["out"],
-            "LED.VALUE":     [0],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": setup_attr,
+                "LED.PIN": [None],
+                "LED.MODE.DATA": ["out"],
+                "LED.VALUE": [0],
+            },
+        )
         g.setup("LED")
         self.assertFalse(setup_attr[0])
 
@@ -645,12 +675,15 @@ class TestSetupNoneGuards(unittest.TestCase):
         aa = _make_actions()
         g, _ = _build_gpio(aa)
         setup_attr = [False]
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     setup_attr,
-            "LED.PIN":       [18],
-            "LED.MODE.DATA": [None],
-            "LED.VALUE":     [0],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": setup_attr,
+                "LED.PIN": [18],
+                "LED.MODE.DATA": [None],
+                "LED.VALUE": [0],
+            },
+        )
         g.setup("LED")
         self.assertFalse(setup_attr[0])
 
@@ -663,12 +696,15 @@ class TestSetupNoneGuards(unittest.TestCase):
         aa = _make_actions()
         g, _ = _build_gpio(aa)
         setup_attr = [False]
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     setup_attr,
-            "LED.PIN":       [18],
-            "LED.MODE.DATA": ["analog"],
-            "LED.VALUE":     [0],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": setup_attr,
+                "LED.PIN": [18],
+                "LED.MODE.DATA": ["analog"],
+                "LED.VALUE": [0],
+            },
+        )
         g.setup("LED")
         self.assertFalse(setup_attr[0])
 
@@ -676,12 +712,15 @@ class TestSetupNoneGuards(unittest.TestCase):
         aa = _make_actions()
         g, gpio_mod = _build_gpio(aa)
         setup_attr = [False]
-        self._fake_device = _bind_registry(aa, {
-            "LED.SETUP":     setup_attr,
-            "LED.PIN":       [18],
-            "LED.MODE.DATA": ["bogus"],
-            "LED.VALUE":     [0],
-        })
+        self._fake_device = _bind_registry(
+            aa,
+            {
+                "LED.SETUP": setup_attr,
+                "LED.PIN": [18],
+                "LED.MODE.DATA": ["bogus"],
+                "LED.VALUE": [0],
+            },
+        )
         g.setup("LED")
         gpio_mod.setup.assert_not_called()
         self.assertFalse(setup_attr[0])
