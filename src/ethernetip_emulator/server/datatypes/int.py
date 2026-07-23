@@ -10,10 +10,12 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Int(Basic):
     MAX = 32_767
     MIN = -32_768
+
     def __init__(self, parent: AttributeActions):
         super().__init__(parent)
 
@@ -21,5 +23,7 @@ class Int(Basic):
     def type_validator(v: Any) -> int:
         n = int(v)
         if not (actions.int.MIN <= n <= actions.int.MAX):
-            raise ValueError(f"INT default {n} is outside [{actions.int.MIN}, {actions.int.MAX}]")
+            raise ValueError(
+                f"INT default {n} is outside [{actions.int.MIN}, {actions.int.MAX}]"
+            )
         return n

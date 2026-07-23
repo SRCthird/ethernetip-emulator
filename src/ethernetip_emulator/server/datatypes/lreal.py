@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class LReal(Basic):
     def __init__(self, parent: AttributeActions):
@@ -21,5 +22,5 @@ class LReal(Basic):
             return float(v)
         except (TypeError, ValueError) as exc:
             raise TypeError(
-                    f"LREAL default must be numeric, got {type(v).__name__!r}: {v!r}"
+                f"LREAL default must be numeric, got {type(v).__name__!r}: {v!r}"
             ) from exc

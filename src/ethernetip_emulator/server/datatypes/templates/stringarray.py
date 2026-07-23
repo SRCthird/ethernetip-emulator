@@ -32,19 +32,19 @@ class StringArray:
             new_key = key
         return self.parent.on_change(name_prefix, callback, key=new_key, defer=defer)
 
-    def get_val(self, name_prefix: str, key: slice | None) -> List[str]:
+    def get_val(self, name_prefix: str, key: slice | None = None) -> List[str]:
         key = key or self._full_slice(name_prefix)
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return []
         return data_tag[key]
 
-    def set_val(self, name_prefix: str, value: List[str], key: slice | None):
+    def set_val(self, name_prefix: str, value: List[str], key: slice | None = None):
         key = key or self._full_slice(name_prefix)
         data_tag = self.parent._lookup(name_prefix)
         if data_tag is None:
             return
-        v = [int(v) for v in (value if isinstance(value, list) else [value])]
+        v = value if isinstance(value, list) else [value]
         self.type_validator(v)
         data_tag[key] = v
 

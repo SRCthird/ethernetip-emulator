@@ -7,6 +7,7 @@ import random
 from time import sleep
 from src.ethernetip_emulator.server.device import actions
 
+
 @actions.sint.on_change("I_SerialNumber")
 def unit_loaded(attr, key, value) -> None:
     ln = actions.string.get_val("I_LotNumber")
@@ -20,6 +21,7 @@ def unit_loaded(attr, key, value) -> None:
     else:
         actions.mfgcontainer.set_sn("O_Container", value[0])
 
+
 @actions.bool.on_change("I_ClearLine", defer=True)
 def clear_line(attr, key, value) -> None:
     if not value[0]:
@@ -31,6 +33,7 @@ def clear_line(attr, key, value) -> None:
     actions.string.set_val("I_CatalogNumber", "")
     actions.uint.set_val("I_SerialNumber", 0)
     actions.bool.set_val("I_ClearLine", False)
+
 
 @actions.bool.on_change("I_ProcessUnit", defer=True)
 def process_unit(attr, key, value) -> None:
@@ -56,6 +59,7 @@ def process_unit(attr, key, value) -> None:
         return
     actions.uintarray.append("O_Passed", sn)
 
+
 def process_steps() -> bool:
     actions.boolarray.set_val("O_Step", [1], slice(0, 1))
     if not process_step1():
@@ -78,13 +82,16 @@ def process_steps() -> bool:
     actions.boolarray.set_val("O_Step", [0, 0, 0])
     return True
 
+
 def process_step1() -> bool:
     pass_rate = 98
-    return random.randint(1, 100) < pass_rate 
+    return random.randint(1, 100) < pass_rate
+
 
 def process_step2():
     pass_rate = 97
-    return random.randint(1, 100) < pass_rate 
+    return random.randint(1, 100) < pass_rate
+
 
 def process_step3():
     pass_rate = 80

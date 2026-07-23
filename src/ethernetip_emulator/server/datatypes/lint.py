@@ -10,10 +10,12 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Lint(Basic):
     MAX = 9_223_372_036_854_775_807
     MIN = -9_223_372_036_854_775_808
+
     def __init__(self, parent: AttributeActions):
         super().__init__(parent)
 
@@ -21,5 +23,7 @@ class Lint(Basic):
     def type_validator(v: Any) -> int:
         n = int(v)
         if not (actions.lint.MIN <= n <= actions.lint.MAX):
-            raise ValueError(f"LINT default {n} is outside [{actions.lint.MIN}, {actions.lint.MAX}]")
+            raise ValueError(
+                f"LINT default {n} is outside [{actions.lint.MIN}, {actions.lint.MAX}]"
+            )
         return n

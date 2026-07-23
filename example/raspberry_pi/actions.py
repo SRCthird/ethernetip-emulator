@@ -7,6 +7,7 @@ from src.ethernetip_emulator.server.device import actions
 
 actions.increment.start(tag_name="O_INCR", wrap=actions.usint.MAX)
 
+
 @actions.int.on_change("O_INCR")
 def on_incr_change(attr, key, value):
     if value[0] % 2 == 0:
@@ -16,7 +17,9 @@ def on_incr_change(attr, key, value):
         actions.gpio.write_pin("O_GreenLed", False)
         actions.gpio.write_pin("O_RedLed", True)
 
+
 actions.gpio.start_polling("I_Button")
+
 
 @actions.gpio.on_change("I_Button")
 def on_button_press(attr, key, value):
@@ -24,4 +27,3 @@ def on_button_press(attr, key, value):
         actions.gpio.write_pin("O_BlueLed", True)
     else:
         actions.gpio.write_pin("O_BlueLed", False)
-

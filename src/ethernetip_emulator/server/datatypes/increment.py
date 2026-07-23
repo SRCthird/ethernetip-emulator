@@ -9,6 +9,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Increment:
     def __init__(self, parent: AttributeActions):
@@ -16,7 +17,9 @@ class Increment:
 
     @staticmethod
     def type_validator(_: Any) -> int:
-        raise TypeError(f"INCREMENT is not a valid type. Use SINT, INT, or DINT instead.")
+        raise TypeError(
+            f"INCREMENT is not a valid type. Use SINT, INT, or DINT instead."
+        )
 
     def start(
         self,
@@ -39,6 +42,7 @@ class Increment:
                 wrap=wrap,
                 initial_delay=initial_delay,
             )
+
         return self.parent._start_worker(f"{tag_name}-increment", worker)
 
     def run_worker(
@@ -75,7 +79,9 @@ class Increment:
             self.parent._write_attr(attr, key, [n])
             self.parent._sleep(period)
 
-    def increment(self, tag_name: str, *, increment: int = 1, key: slice = slice(0, 1)) -> None:
+    def increment(
+        self, tag_name: str, *, increment: int = 1, key: slice = slice(0, 1)
+    ) -> None:
         attr = self.parent._lookup(tag_name)
         raw = self.parent._read_attr(attr, key) if attr is not None else None
         n: int = int(raw[0]) if raw is not None else 0
@@ -83,7 +89,9 @@ class Increment:
         if attr:
             self.parent._write_attr(attr, key, [n])
 
-    def decrement(self, tag_name: str, decrement: int = 1, *, key: slice = slice(0, 1)) -> None:
+    def decrement(
+        self, tag_name: str, decrement: int = 1, *, key: slice = slice(0, 1)
+    ) -> None:
         attr = self.parent._lookup(tag_name)
         raw = self.parent._read_attr(attr, key) if attr is not None else None
         n: int = int(raw[0]) if raw is not None else 0
@@ -91,7 +99,9 @@ class Increment:
         if attr:
             self.parent._write_attr(attr, key, [n])
 
-    def reset(self, tag_name: str, *, default: int = 0, key: slice = slice(0, 1)) -> None:
+    def reset(
+        self, tag_name: str, *, default: int = 0, key: slice = slice(0, 1)
+    ) -> None:
         attr = self.parent._lookup(tag_name)
         if attr:
             self.parent._write_attr(attr, key, [default])

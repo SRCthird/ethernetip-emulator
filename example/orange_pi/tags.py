@@ -6,13 +6,10 @@
 from src.ethernetip_emulator.server.tag_specs import tag_registry
 from src.ethernetip_emulator.server.device import actions
 
+
 @tag_registry.register
 def _():
     return [
-        ("GPIO_18",           actions.type.GPIO((
-            "PH04", False, "out"
-        ))),
-        ("GPIO_40",           actions.type.GPIO((
-            "PI03", True, "in"
-        ))),
+        ("GPIO_18", actions.type.GPIO(("PH04", False, "out"))),
+        ("GPIO_40", actions.type.GPIO(("PI03", True, "in"))),
     ]

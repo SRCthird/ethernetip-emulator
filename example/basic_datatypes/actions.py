@@ -49,7 +49,7 @@ def handle_timer_done(attr, key, value) -> None:
     actions.bool.set_val("O_Timer.EN", False)
 
 
-actions.increment.start(tag_name="O_INCR", start=0, wrap=actions.int.MAX)
+# actions.increment.start(tag_name="O_INCR", start=0, wrap=actions.int.MAX)
 
 
 # @actions.bool.on_change("O_BOOL", defer=True)

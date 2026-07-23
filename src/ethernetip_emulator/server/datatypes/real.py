@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Real(Basic):
     def __init__(self, parent: AttributeActions):

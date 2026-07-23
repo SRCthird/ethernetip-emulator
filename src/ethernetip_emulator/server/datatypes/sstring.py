@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Sstring(Basic):
     def __init__(self, parent: AttributeActions):
@@ -18,5 +19,7 @@ class Sstring(Basic):
     @staticmethod
     def type_validator(v: Any) -> str:
         if not isinstance(v, str):
-            raise TypeError(f"SSTRING default must be str, got {type(v).__name__!r}: {v!r}")
+            raise TypeError(
+                f"SSTRING default must be str, got {type(v).__name__!r}: {v!r}"
+            )
         return v

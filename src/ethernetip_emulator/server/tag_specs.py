@@ -38,6 +38,7 @@ class TagRegistry:
     ) -> Any:
         if isinstance(fn_or_prefix, str):
             prefix = fn_or_prefix
+
             def decorator(fn):
                 staged = [
                     (f"{prefix}.{name}", type_spec, default)
@@ -49,6 +50,7 @@ class TagRegistry:
                     self._raw.extend(staged)
                     self.invalidate()
                 return fn
+
             return decorator
         else:
             fn = fn_or_prefix
@@ -58,14 +60,13 @@ class TagRegistry:
                 self.invalidate()
             return fn
 
-    def expander(
-        self, type_spec: str
-    ) -> Callable[[Callable], Callable]:
+    def expander(self, type_spec: str) -> Callable[[Callable], Callable]:
         def decorator(fn: Callable) -> Callable:
             with self._lock:
                 self._expanders[type_spec.upper()] = fn
                 self.invalidate()
             return fn
+
         return decorator
 
     def _expand_one(
@@ -157,5 +158,6 @@ class TagRegistry:
     @property
     def argv(self) -> List[str]:
         return self.build_argv(base_args=["--print"])
+
 
 tag_registry = TagRegistry()

@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Sint(Basic):
     MAX = 127
@@ -22,5 +23,7 @@ class Sint(Basic):
     def type_validator(v: Any) -> int:
         n = int(v)
         if not (actions.sint.MIN <= n <= actions.sint.MAX):
-            raise ValueError(f"SINT default {n} is outside [{actions.sint.MIN}, {actions.sint.MAX}]")
+            raise ValueError(
+                f"SINT default {n} is outside [{actions.sint.MIN}, {actions.sint.MAX}]"
+            )
         return n

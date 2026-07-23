@@ -10,6 +10,7 @@ from ..device import actions
 if TYPE_CHECKING:
     from ..actions import AttributeActions
 
+
 @actions.datatype
 class Usint(Basic):
     MAX = 255
@@ -22,5 +23,7 @@ class Usint(Basic):
     def type_validator(v: Any) -> int:
         n = int(v)
         if not (actions.usint.MIN <= n <= actions.usint.MAX):
-            raise ValueError(f"USINT default {n} is outside [{actions.usint.MIN}, {actions.usint.MAX}]")
+            raise ValueError(
+                f"USINT default {n} is outside [{actions.usint.MIN}, {actions.usint.MAX}]"
+            )
         return n

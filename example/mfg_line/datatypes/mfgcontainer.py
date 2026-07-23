@@ -42,14 +42,16 @@ class MFGContainer:
     def _(name: str, preset: Tuple[str, str, str]):
         sn, lot, container = preset
         return [
-            (f"{name}.SN",  actions.type.UINT(int(sn))),
+            (f"{name}.SN", actions.type.UINT(int(sn))),
             (f"{name}.SSN", actions.type.STRING(sn)),
-            (f"{name}.LN",  actions.type.STRING(lot)),
-            (f"{name}.CN",  actions.type.STRING(container)),
+            (f"{name}.LN", actions.type.STRING(lot)),
+            (f"{name}.CN", actions.type.STRING(container)),
             (f"{name}.FLT", actions.type.BOOL(False)),
         ]
 
-    def on_set_hook(self, tag_name: str, attr: Any, key: slice, value: List[Any]) -> None:
+    def on_set_hook(
+        self, tag_name: str, attr: Any, key: slice, value: List[Any]
+    ) -> None:
         # Formats int Serial Number to String Serial Number
         if tag_name.endswith(".SN"):
             name_prefix = tag_name[: -len(".SN")]
@@ -77,7 +79,9 @@ class MFGContainer:
         self.set_cn(name_prefix, "")
         self.set_flt(name_prefix, False)
 
-    def set_container(self, name_prefix: str, sn: int, ln: str, cn: str, flt: bool = False):
+    def set_container(
+        self, name_prefix: str, sn: int, ln: str, cn: str, flt: bool = False
+    ):
         self.set_sn(name_prefix, sn)
         self.set_ln(name_prefix, ln)
         self.set_cn(name_prefix, cn)
@@ -93,10 +97,11 @@ class MFGContainer:
         )
 
     def is_empty(self, name_prefix) -> bool:
-        return self.get_sn(name_prefix) == 0 and \
-            self.get_ln(name_prefix) == "" and \
-            self.get_cn(name_prefix) == ""
-
+        return (
+            self.get_sn(name_prefix) == 0
+            and self.get_ln(name_prefix) == ""
+            and self.get_cn(name_prefix) == ""
+        )
 
     def get_sn(self, name_prefix: str) -> int:
         return actions.uint.get_val(f"{name_prefix}.SN")

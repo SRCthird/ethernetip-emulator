@@ -14,11 +14,13 @@ if TYPE_CHECKING:
 def _import_gpio():
     try:
         import RPi.GPIO as GPIO
+
         return GPIO, "RPi"
     except ImportError:
         pass
     try:
         import OPi.GPIO as GPIO
+
         return GPIO, "OPi"
     except ImportError:
         pass
@@ -27,6 +29,7 @@ def _import_gpio():
 
 try:
     _import_gpio()
+
     @actions.datatype
     class Gpio:
         def __init__(self, parent: AttributeActions):
@@ -109,7 +112,9 @@ try:
                 return
             mode = mode_tag[0] if isinstance(mode_tag[0], str) else None
             if mode == "out":
-                self._gpio.output(pin, bool(value[0] if isinstance(value, list) else value))
+                self._gpio.output(
+                    pin, bool(value[0] if isinstance(value, list) else value)
+                )
             elif mode == "pwm":
                 pwm = self._pwm_instances.get(name_prefix)
                 if pwm is not None:
@@ -136,7 +141,7 @@ try:
                 return
             self._pins[name_prefix] = pin
             gpio_mode = {
-                "in":  self._gpio.IN,
+                "in": self._gpio.IN,
                 "out": self._gpio.OUT,
                 "pwm": self._gpio.OUT,
             }.get(mode)
@@ -195,7 +200,9 @@ try:
                 return False
             return bool(self._gpio.input(pin))
 
-        def write_pin(self, name_prefix: str, value: bool, key: slice = slice(0,1)) -> None:
+        def write_pin(
+            self, name_prefix: str, value: bool, key: slice = slice(0, 1)
+        ) -> None:
             data_tag = self.parent._lookup(f"{name_prefix}.VALUE")
             if data_tag is None:
                 return
@@ -217,6 +224,7 @@ try:
             self._pins.clear()
 
 except ImportError:
+
     @actions.datatype
     class Gpio:
         def __init__(self, parent: AttributeActions):
@@ -224,4 +232,6 @@ except ImportError:
 
         @staticmethod
         def type_validator(_: Any) -> int:
-            raise TypeError(f"GPIO is not a usable datatype. Neither RPi.GPIO nor OPi.GPIO is installed")
+            raise TypeError(
+                f"GPIO is not a usable datatype. Neither RPi.GPIO nor OPi.GPIO is installed"
+            )
