@@ -10,7 +10,7 @@ from ..actions import TypeSpec
 from ..tag_specs import tag_registry
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ..actions import AttributeActions
 
 
 @actions.datatype

@@ -8,7 +8,7 @@ from .templates import Basic
 from ..device import actions
 
 if TYPE_CHECKING:
-    from src.ethernetip_emulator.server.actions import AttributeActions
+    from ..actions import AttributeActions
 
 
 @actions.datatype
