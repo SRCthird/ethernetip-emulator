@@ -1,7 +1,7 @@
 # Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
 # All rights reserved
 
-# test/server/datatypes/test_datatype_dint.py
+# test/server/datatypes/test_datatype_lint.py
 import unittest
 
 import threading
@@ -41,7 +41,7 @@ def _stop_server(server_control, thread) -> None:
     AttributeDevice.reset_defaults()
 
 
-class TestDatatypeDintRegistry(unittest.TestCase):
+class TestDatatypeLintRegistry(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -54,50 +54,50 @@ class TestDatatypeDintRegistry(unittest.TestCase):
     def test_type_validator_above_max(self):
         with self.assertRaises(ValueError):
             tag_registry.register(
-                lambda: [("tag_dint", actions.type.DINT(actions.dint.MAX + 1))]
+                lambda: [("tag_lint", actions.type.LINT(actions.lint.MAX + 1))]
             )
 
     def test_type_validator_below_min(self):
         with self.assertRaises(ValueError):
             tag_registry.register(
-                lambda: [("tag_dint", actions.type.DINT(actions.dint.MIN - 1))]
+                lambda: [("tag_lint", actions.type.LINT(actions.lint.MIN - 1))]
             )
 
     def test_type_validator_non_numeric(self):
         with self.assertRaises((ValueError, TypeError)):
             tag_registry.register(
-                lambda: [("tag_dint", actions.type.DINT("not_a_number"))]
+                lambda: [("tag_lint", actions.type.LINT("not_a_number"))]
             )
 
     def test_type_validator_at_max(self):
         tag_registry.register(
-            lambda: [("tag_dint_max", actions.type.DINT(actions.dint.MAX))]
+            lambda: [("tag_lint_max", actions.type.LINT(actions.lint.MAX))]
         )
         tag_registry.invalidate()
         tag_registry._raw.clear()
 
     def test_type_validator_at_min(self):
         tag_registry.register(
-            lambda: [("tag_dint_min", actions.type.DINT(actions.dint.MIN))]
+            lambda: [("tag_lint_min", actions.type.LINT(actions.lint.MIN))]
         )
         tag_registry.invalidate()
         tag_registry._raw.clear()
 
     def test_type_validator_coerces_float(self):
-        tag_registry.register(lambda: [("tag_dint_float", actions.type.DINT(1.0))])
+        tag_registry.register(lambda: [("tag_lint_float", actions.type.LINT(1.0))])
         tag_registry.invalidate()
         tag_registry._raw.clear()
 
     def test_array_type_validator_is_not_tuple(self):
         with self.assertRaises((ValueError, TypeError)):
             tag_registry.register(
-                lambda: [("tag_dint_array", actions.type.DINTARRAY("not_a_tuple"))]
+                lambda: [("tag_lint_array", actions.type.LINTARRAY("not_a_tuple"))]
             )
 
     def test_array_type_validator_empty_tuple(self):
         with self.assertRaises((ValueError, TypeError)):
             tag_registry.register(
-                lambda: [("tag_dint_array", actions.type.DINTARRAY([]))]
+                lambda: [("tag_lint_array", actions.type.LINTARRAY([]))]
             )
 
     def test_array_type_validator_not_a_number(self):
@@ -105,8 +105,8 @@ class TestDatatypeDintRegistry(unittest.TestCase):
             tag_registry.register(
                 lambda: [
                     (
-                        "tag_dint_array",
-                        actions.type.DINTARRAY(
+                        "tag_lint_array",
+                        actions.type.LINTARRAY(
                             [
                                 "not_a_number",
                             ]
@@ -120,10 +120,10 @@ class TestDatatypeDintRegistry(unittest.TestCase):
             tag_registry.register(
                 lambda: [
                     (
-                        "tag_dint",
-                        actions.type.DINTARRAY(
+                        "tag_lint",
+                        actions.type.LINTARRAY(
                             [
-                                actions.dint.MAX + 1,
+                                actions.lint.MAX + 1,
                             ]
                         ),
                     )
@@ -135,10 +135,10 @@ class TestDatatypeDintRegistry(unittest.TestCase):
             tag_registry.register(
                 lambda: [
                     (
-                        "tag_dint",
-                        actions.type.DINTARRAY(
+                        "tag_lint",
+                        actions.type.LINTARRAY(
                             [
-                                actions.dint.MIN - 1,
+                                actions.lint.MIN - 1,
                             ]
                         ),
                     )
@@ -146,14 +146,14 @@ class TestDatatypeDintRegistry(unittest.TestCase):
             )
 
 
-class TestDatatypeDintActions(unittest.TestCase):
+class TestDatatypeLintActions(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         tag_registry.register(
             lambda: [
-                ("tag_dint", actions.type.DINT(0)),
-                ("tag_dint_array", actions.type.DINTARRAY([0, 0, 0, 0])),
+                ("tag_lint", actions.type.LINT(0)),
+                ("tag_lint_array", actions.type.LINTARRAY([0, 0, 0, 0])),
             ]
         )
 
@@ -165,197 +165,197 @@ class TestDatatypeDintActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
-        actions._lookup("tag_dint")[slice(0, 1)] = [0]  # type: ignore
-        actions._lookup("tag_dint_array")[slice(0, 4)] = [0, 0, 0, 0]  # type: ignore
+        actions._lookup("tag_lint")[slice(0, 1)] = [0]  # type: ignore
+        actions._lookup("tag_lint_array")[slice(0, 4)] = [0, 0, 0, 0]  # type: ignore
 
     def test_get_val(self):
-        self.assertEqual(actions.dint.get_val("tag_dint"), 0)
+        self.assertEqual(actions.lint.get_val("tag_lint"), 0)
 
     def test_get_val_is_array(self):
-        v = actions.dint.get_val("tag_dint_array", slice(0, 4))
+        v = actions.lint.get_val("tag_lint_array", slice(0, 4))
         self.assertIsInstance(v, list)
 
     def test_get_val_is_none(self):
-        self.assertIsNone(actions.dint.get_val("no_tag"))
+        self.assertIsNone(actions.lint.get_val("no_tag"))
 
     def test_set_val(self):
-        actions.dint.set_val("tag_dint", 42)
-        self.assertEqual(actions.dint.get_val("tag_dint"), 42)
+        actions.lint.set_val("tag_lint", 42)
+        self.assertEqual(actions.lint.get_val("tag_lint"), 42)
 
     def test_set_val_negative(self):
-        actions.dint.set_val("tag_dint", -1)
-        self.assertEqual(actions.dint.get_val("tag_dint"), -1)
+        actions.lint.set_val("tag_lint", -1)
+        self.assertEqual(actions.lint.get_val("tag_lint"), -1)
 
     def test_set_val_max(self):
-        actions.dint.set_val("tag_dint", actions.dint.MAX)
-        self.assertEqual(actions.dint.get_val("tag_dint"), actions.dint.MAX)
+        actions.lint.set_val("tag_lint", actions.lint.MAX)
+        self.assertEqual(actions.lint.get_val("tag_lint"), actions.lint.MAX)
 
     def test_set_val_min(self):
-        actions.dint.set_val("tag_dint", actions.dint.MIN)
-        self.assertEqual(actions.dint.get_val("tag_dint"), actions.dint.MIN)
+        actions.lint.set_val("tag_lint", actions.lint.MIN)
+        self.assertEqual(actions.lint.get_val("tag_lint"), actions.lint.MIN)
 
     def test_set_val_is_none(self):
-        self.assertIsNone(actions.dint.set_val("no_tag", 1))
+        self.assertIsNone(actions.lint.set_val("no_tag", 1))
 
     def test_on_change(self):
         changed = []
 
-        @actions.dint.on_change("tag_dint")
+        @actions.lint.on_change("tag_lint")
         def _(attr, key, value):
             changed.append(value[0])
 
-        actions.dint.set_val("tag_dint", 99)
+        actions.lint.set_val("tag_lint", 99)
         self.assertEqual(changed[-1], 99)
 
     def test_on_change_negative(self):
         changed = []
 
-        @actions.dint.on_change("tag_dint")
+        @actions.lint.on_change("tag_lint")
         def _(attr, key, value):
             changed.append(value[0])
 
-        actions.dint.set_val("tag_dint", -500)
+        actions.lint.set_val("tag_lint", -500)
         self.assertEqual(changed[-1], -500)
 
     def test_array_get_val(self):
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [0, 0, 0, 0])
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [0, 0, 0, 0])
 
     def test_array_slice_get_val(self):
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array", slice(0, 1)), [0])
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array", slice(0, 1)), [0])
         self.assertEqual(
-            actions.dintarray.get_val("tag_dint_array", slice(0, 2)), [0, 0]
+            actions.lintarray.get_val("tag_lint_array", slice(0, 2)), [0, 0]
         )
         self.assertEqual(
-            actions.dintarray.get_val("tag_dint_array", slice(0, 3)),
+            actions.lintarray.get_val("tag_lint_array", slice(0, 3)),
             [0, 0, 0],
         )
         self.assertEqual(
-            actions.dintarray.get_val("tag_dint_array", slice(0, 4)),
+            actions.lintarray.get_val("tag_lint_array", slice(0, 4)),
             [0, 0, 0, 0],
         )
 
     def test_array_get_val_is_empty(self):
-        v = actions.dintarray.get_val("no_tag")
+        v = actions.lintarray.get_val("no_tag")
         self.assertEqual(v, [])
 
     def test_array_set_val(self):
         v = [1, 2, 3, 4]
-        actions.dintarray.set_val("tag_dint_array", v)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), v)
+        actions.lintarray.set_val("tag_lint_array", v)
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), v)
 
     def test_array_set_val_slice(self):
         v = 99
-        actions.dintarray.set_val("tag_dint_array", [v], slice(0, 1))
-        actions.dintarray.set_val("tag_dint_array", [v], slice(1, 2))
-        actions.dintarray.set_val("tag_dint_array", [v], slice(2, 3))
-        actions.dintarray.set_val("tag_dint_array", [v], slice(3, 4))
-        rv = actions.dintarray.get_val("tag_dint_array")
+        actions.lintarray.set_val("tag_lint_array", [v], slice(0, 1))
+        actions.lintarray.set_val("tag_lint_array", [v], slice(1, 2))
+        actions.lintarray.set_val("tag_lint_array", [v], slice(2, 3))
+        actions.lintarray.set_val("tag_lint_array", [v], slice(3, 4))
+        rv = actions.lintarray.get_val("tag_lint_array")
         for i, val in enumerate(rv):
             with self.subTest(number=i):
                 self.assertEqual(val, v)
 
     def test_array_set_val_is_none(self):
-        v = actions.dintarray.set_val("no_tag", [10])
+        v = actions.lintarray.set_val("no_tag", [10])
         self.assertIsNone(v)
 
     def test_array_on_change(self):
         changed = []
         v = 99
 
-        @actions.dintarray.on_change("tag_dint_array", key=slice(0, 1))
+        @actions.lintarray.on_change("tag_lint_array", key=slice(0, 1))
         def _(attr, key, value):
             changed.append(value[0])
 
-        actions.dintarray.set_val("tag_dint_array", [v], slice(0, 1))
+        actions.lintarray.set_val("tag_lint_array", [v], slice(0, 1))
         self.assertEqual(changed[-1], v)
 
     def test_array_on_change_no_slice(self):
         changed = []
         v = [5, 10, 15, 20]
 
-        @actions.dintarray.on_change("tag_dint_array")
+        @actions.lintarray.on_change("tag_lint_array")
         def _(attr, key, value):
             changed.append(value)
 
-        actions.dintarray.set_val("tag_dint_array", v, slice(0, 4))
+        actions.lintarray.set_val("tag_lint_array", v, slice(0, 4))
         self.assertEqual(changed[-1], v)
 
     def test_array_append(self):
-        actions.dintarray.append("tag_dint_array", 10)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [10, 0, 0, 0])
+        actions.lintarray.append("tag_lint_array", 10)
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [10, 0, 0, 0])
 
     def test_array_append_is_full(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.append("tag_dint_array", 5)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.append("tag_lint_array", 5)
         self.assertEqual(v, 0)
 
     def test_array_prepend(self):
-        actions.dintarray.prepend("tag_dint_array", 67)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [0, 0, 0, 67])
+        actions.lintarray.prepend("tag_lint_array", 67)
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [0, 0, 0, 67])
 
     def test_array_prepend_is_full(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.prepend("tag_dint_array", 5)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.prepend("tag_lint_array", 5)
         self.assertEqual(v, 0)
 
     def test_array_pop(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.pop("tag_dint_array")
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.pop("tag_lint_array")
         self.assertEqual(v, 40)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [10, 20, 30, 0])
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [10, 20, 30, 0])
 
     def test_array_pop_is_empty(self):
-        v = actions.dintarray.pop("tag_dint_array")
+        v = actions.lintarray.pop("tag_lint_array")
         self.assertIsNone(v)
 
     def test_array_insert(self):
-        actions.dintarray.insert("tag_dint_array", 2, 99)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [0, 0, 99, 0])
+        actions.lintarray.insert("tag_lint_array", 2, 99)
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [0, 0, 99, 0])
 
     def test_array_insert_is_full(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.insert("tag_dint_array", 2, 99)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.insert("tag_lint_array", 2, 99)
         self.assertEqual(v, 0)
 
     def test_array_remove(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.remove("tag_dint_array", 2)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.remove("tag_lint_array", 2)
         self.assertEqual(v, 30)
-        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [10, 20, 40, 0])
+        self.assertEqual(actions.lintarray.get_val("tag_lint_array"), [10, 20, 40, 0])
 
     def test_array_remove_is_empty(self):
-        v = actions.dintarray.remove("tag_dint_array", 2)
+        v = actions.lintarray.remove("tag_lint_array", 2)
         self.assertIsNone(v)
 
     def test_array_count(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 0, 30, 0])
-        self.assertEqual(actions.dintarray.count("tag_dint_array"), 2)
+        actions.lintarray.set_val("tag_lint_array", [10, 0, 30, 0])
+        self.assertEqual(actions.lintarray.count("tag_lint_array"), 2)
 
     def test_array_is_full(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        self.assertEqual(actions.dintarray.is_full("tag_dint_array"), True)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        self.assertEqual(actions.lintarray.is_full("tag_lint_array"), True)
 
     def test_array_is_not_full(self):
-        self.assertEqual(actions.dintarray.is_full("tag_dint_array"), False)
+        self.assertEqual(actions.lintarray.is_full("tag_lint_array"), False)
 
     def test_array_is_empty(self):
-        self.assertEqual(actions.dintarray.is_empty("tag_dint_array"), True)
+        self.assertEqual(actions.lintarray.is_empty("tag_lint_array"), True)
 
     def test_array_is_not_empty(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        self.assertEqual(actions.dintarray.is_empty("tag_dint_array"), False)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        self.assertEqual(actions.lintarray.is_empty("tag_lint_array"), False)
 
     def test_array_find(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.find("tag_dint_array", 20)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.find("tag_lint_array", 20)
         self.assertEqual(v, 1)
 
     def test_array_not_found(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        v = actions.dintarray.find("tag_dint_array", 67)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        v = actions.lintarray.find("tag_lint_array", 67)
         self.assertIsNone(v)
 
     def test_array_clear(self):
-        actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
-        actions.dintarray.clear("tag_dint_array")
-        self.assertEqual(actions.dintarray.is_empty("tag_dint_array"), True)
+        actions.lintarray.set_val("tag_lint_array", [10, 20, 30, 40])
+        actions.lintarray.clear("tag_lint_array")
+        self.assertEqual(actions.lintarray.is_empty("tag_lint_array"), True)
