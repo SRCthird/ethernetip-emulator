@@ -5,8 +5,9 @@
 import threading
 from typing import Any, Dict, Mapping, Optional
 
-import cpppo
+from cpppo import apidict
 from cpppo.server.enip import device
+from cpppo.server.enip.main import main as device_controller
 from .tag_specs import tag_registry
 from .actions import AttributeActions
 
@@ -15,11 +16,11 @@ class AttributeDevice(device.Attribute):
     registry: Dict[str, "AttributeDevice"] = {}
     _actions: AttributeActions = AttributeActions()
     _defaults: Optional[Mapping[str, Any]] = None
-    _server_control: Optional[cpppo.apidict] = None
+    _server_control: Optional[apidict] = None
     _control_lock = threading.Lock()
 
     @classmethod
-    def set_server_control(cls, control: cpppo.apidict) -> None:
+    def set_server_control(cls, control: apidict) -> None:
         with cls._control_lock:
             cls._server_control = control
 
