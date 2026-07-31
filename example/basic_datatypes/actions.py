@@ -2,8 +2,6 @@
 # All rights reserved
 
 # example/basic_datatypes/actions.py
-from time import sleep
-
 from ethernetip_emulator.server.device import AttributeDevice, actions
 
 
