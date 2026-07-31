@@ -1,113 +1,154 @@
-# Ethernet/IP Emulator (Python)
+# EtherNet/IP Emulator (Python)
 
-A small Python-based Ethernet/IP emulation template built on top of `cpppo` that exposes a set of tags (as attributes) and supports simple side-effect behaviors (like mirroring tags, background incrementing).
+ethernetip-emulator is a high level binary communications framework built around [`cpppo`](https://github.com/pjkundert/cpppo) (pronounced ‘c’3*’p’‘o’ in Python) that exposes a set of tags and allows for the programatic execution .
 
-## Features
-
-- **Tag specification utilities**
-  - Define tags in a simple list form (`TAG_SPECS`)
-  - Generate argv-style definitions (`TAG_ARGV`) for the server
-
-- **Device layer**
-  - `AttributeDevice` extends `cpppo.server.enip.device.Attribute`
-  - Applies per-tag defaults
-  - Triggers hook logic on writes through `AttributeActions`
-
-- **Action layer**
-  - `AttributeActions` handles side effects such as:
-    - `on_set` dispatching (e.g., `I_TEXT` mirrors to `O_TEXT`)
-    - background increment workers (`start_increment`, `run_increment_worker`)
-  - Designed to be testable via dependency injection (`sleep_fn`, `thread_factory`, `logger`)
-
-## Project Structure
-
-See [Software Engineering at Merck](https://engineering.merckgroup.com/docs/dev/structure/) for more details.
+## Architecture
 
 ```
-src/
-  client/          # not implemented
-  server/
-    actions/*      # side effects, increment worker, event handlers
-    device.py      # AttributeDevice + defaults/argv helpers
-    tag_specs.py   # TAG_SPECS + argv builder
-tests/
-  test_actions.py
-  test_device.py
-  test_tag_specs.py
+.
+├───example
+│   ├───basic_datatypes
+│   │   └─── *.py
+│   ├───mfg_line
+│   │   └─── *.py
+│   ├───orange_pi
+│   │   └─── *.py
+│   └───raspberry_pi
+│       └─── *.py
+├───src
+│   └───ethernetip_emulator
+│       ├───client
+│       ├───server
+│       │   ├───datatypes
+│       │   │   ├───templates
+│       │   │   │   └─── *.py
+│       │   │   └─── *.py
+│       │   └─── *.py
+│       └─── *.py
+└───tests
+    └───server
+        ├───datatypes
+        │   ├───mock
+        │   │   └─── test_*.py
+        │   ├───templates
+        │   │   └─── test_*.py
+        │   └─── test_*.py
+        └─── test_*.py
+        
 ```
 
 ## Requirements
 
 - Python 3.10+
 - `cpppo` (for Ethernet/IP attribute/device behavior)
-- `black` (for code formatting)
-- `coverage` (for coverage reporting)
+- `black` | Development Dependency (for code formatting)
+- `coverage` | Developer Dependency (for coverage reporting)
+- `RPi.GPIO` or `OPi.GPIO` | Optional Dependency (for gpio i/o)
 
-Example install:
-
-```bash
-pip install -r requirements.txt 
-```
-
-## Running Tests
-
-### With `unittest`
-```bash
-python -m unittest discover -s tests -p "test_*.py"
-```
-
-## Coverage
-
-Run coverage (line + missing lines):
+## Getting Started
 
 ```bash
-coverage run -m unittest discover
-coverage report -m
+pip install ethernetip-emulator
 ```
 
-## How Defaults Work
+A minimal project needs three files:
 
-`src/server/device.py` provided helpers:
-
-- `build_defaults(TAG_SPECS)` → `{name: default}` for defaults that are not `None`
-- `AttributeDevice` applies defaults during initialization:
-  - If `kwargs["default"]` is a non-empty list, it replaces the first element
-  - Otherwise it sets `kwargs["default"]` directly
-
-## How Actions Work
-
-### Write hook
-`AttributeDevice.__setitem__` calls:
+| File | Purpose |
+|---|---|
+| `tags.py` | Declare tags with `@tag_registry.register` |
+| `actions.py` | React to tag changes with `@actions.<type>.on_change` |
+| `__main__.py` | Start the server with `device_controller` |
 
 ```python
-self._actions.on_set(self, key, value)
+# __main__.py
+from ethernetip_emulator.server.device import AttributeDevice, apidict, device_controller
+from ethernetip_emulator.server.tag_specs import tag_registry
+import tags    # registers all tags (can also just be imported in __init__.py)
+import actions # registers all listeners (can also just be imported in __init__.py)
+
+if __name__ == "__main__":
+    server_control = apidict(timeout=1.0)
+    AttributeDevice.set_server_control(server_control)
+
+    with AttributeDevice._actions.bind(AttributeDevice):
+        device_controller(
+            argv=tag_registry.build_argv(base_args=["--print"]),
+            attribute_class=AttributeDevice,
+            server={"control": server_control},
+        )
 ```
 
-`AttributeActions.on_set` dispatches by attribute name. Example implemented:
+## Guides
 
-- Writing `"I_TEXT"` mirrors the value to `"O_TEXT"` (if present in the registry)
+### Core
 
-### Increment worker
-`AttributeActions.start_increment(...)` spawns a background worker thread that runs:
+| Guide | Description |
+|---|---|
+| [Tag Registry](wiki/Defining-Tags-with-tag_registry.register) | Define tags with `@tag_registry.register`, use namespaced prefixes, and organise tags across files |
+| [Actions](wiki/Working-with-Actions) | Read and write tags at runtime, register `on_change` listeners, and understand `key` and `defer` |
+| [Device](wiki/The-Device-Module) | Start and stop the server, understand how tag writes are intercepted, and apply startup defaults |
 
-- `run_increment_worker(...)` which:
-  - sleeps an initial delay
-  - increments the target tag periodically
-  - supports `wrap` modulus behavior
+### Datatypes
 
-For tests, the actions class allows injection of:
-- `sleep_fn` to avoid real waiting
-- `thread_factory` to avoid real threads
-- `logger` to capture log messages
+| Guide | Description |
+|---|---|
+| [Datatypes Overview](wiki/datatypes) | All built-in types at a glance, and a step-by-step guide to creating custom datatypes |
+| [Basic Datatypes](wiki/basic-datatypes) | Scalar types: `BOOL`, integers, floats, and strings — shared `get_val` / `set_val` / `on_change` API |
+| [Bool Array](wiki/bool-array-datatype) | `BOOLARRAY` — bit-level access, list operations, bulk mutations |
+| [Numeric Arrays](wiki/numeric-array-datatypes) | `SINTARRAY` · `USINTARRAY` · `INTARRAY` · `UINTARRAY` · `DINTARRAY` · `UDINTARRAY` · `LINTARRAY` · `ULINTARRAY` |
+| [Real Arrays](wiki/real-array-datatypes) | `REALARRAY` · `LREALARRAY` — same API as numeric arrays with floating-point zero tolerance (`1e-9`) |
+| [String Array](wiki/string-array-datatype) | `SSTRINGARRAY` — list operations using `""` as the empty slot sentinel |
 
-## Usage In The Field
+## Typical Workflow 
 
-- This program uses a basic Ethernet/IP protocol, so connecting to it with higher-end or more complex drivers might result in errors.
-- Drivers like the Allen-Bradley Micro800 Ethernet are the most compatible, but others may be available.
-- Connection can be made through the default Ethernet/IP port of 44818.
+```
+┌─────────────────────────────────────────────────────┐
+│                    Your Project                     │
+│                                                     │
+│  tags.py ──────► tag_registry                       │
+│                      │                              │
+│                       ▼                             │
+│  datatypes.py ─► actions.datatype                   │
+│                      │                              │
+│                       ▼                             │
+│  __main__.py ──► device_controller                  │
+│                      │                              │
+│                       ▼                             │
+│              AttributeDevice                        │
+│           (intercepts PLC writes)                   │
+│                      │                              │
+│                       ▼                             │
+│  actions.py ──► on_change listeners                 │
+│                      │                              │
+│                       ▼                             │
+│              actions.<type>.set_val / get_val       │
+└─────────────────────────────────────────────────────┘
+```
+
+1. **Tags** are declared once at import time via `@tag_registry.register`.
+2. **Custom Datatypes** can be declared once at import time via `@actions.datatype`. Although this is completely optional if you like the built-in datatypes
+2. **`device_controller`** builds the tag list and starts the EtherNet/IP server.
+3. **`AttributeDevice`** intercepts every PLC write and fires the matching `on_change` listeners.
+4. **Listeners** use `actions.<type>` helpers to read state, write back to tags, or trigger application logic.
+
+## Project Layout Convention
+
+```
+your_project/
+├── __main__.py          # server entrypoint
+├── tags.py              # tag definitions
+├── actions.py           # on_change handlers
+└── datatypes/           # optional: custom datatype classes
+    ├── __init__.py
+    └── mytype.py
+```
+
+For larger projects, split tags and actions into sub-modules and import them from a top-level `__init__.py` so all registrations are triggered before the server starts.
+
+## Supporting the Development of EtherNet/IP Emulator
+EtherNet/IP Emulator's development depends on your contributions. Right now it is just me working on this, so any contributions are welcome!
 
 ## License
 
-See [[LICENSE]]
-Copyright 2022 Merck KGaA, Darmstadt, Germany and/or its affiliates.
-All rights reserved.
+Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates. All rights reserved.
+
