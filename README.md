@@ -84,20 +84,23 @@ if __name__ == "__main__":
 
 | Guide | Description |
 |---|---|
-| [Tag Registry](wiki/Defining-Tags-with-tag_registry.register) | Define tags with `@tag_registry.register`, use namespaced prefixes, and organise tags across files |
-| [Actions](wiki/Working-with-Actions) | Read and write tags at runtime, register `on_change` listeners, and understand `key` and `defer` |
-| [Device](wiki/The-Device-Module) | Start and stop the server, understand how tag writes are intercepted, and apply startup defaults |
+| [Tag Registry](https://github.com/SRCthird/ethernetip-emulator/wiki/Defining-Tags-with-tag_registry.register) | Define tags with `@tag_registry.register`, use namespaced prefixes, and organise tags across files |
+| [Actions](https://github.com/SRCthird/ethernetip-emulator/wiki/Working-with-Actions) | Read and write tags at runtime, register `on_change` listeners, and understand `key` and `defer` |
+| [Device](https://github.com/SRCthird/ethernetip-emulator/wiki/The-Device-Module) | Start and stop the server, understand how tag writes are intercepted, and apply startup defaults |
 
 ### Datatypes
 
 | Guide | Description |
 |---|---|
-| [Datatypes Overview](wiki/datatypes) | All built-in types at a glance, and a step-by-step guide to creating custom datatypes |
-| [Basic Datatypes](wiki/basic-datatypes) | Scalar types: `BOOL`, integers, floats, and strings — shared `get_val` / `set_val` / `on_change` API |
-| [Bool Array](wiki/bool-array-datatype) | `BOOLARRAY` — bit-level access, list operations, bulk mutations |
-| [Numeric Arrays](wiki/numeric-array-datatypes) | `SINTARRAY` · `USINTARRAY` · `INTARRAY` · `UINTARRAY` · `DINTARRAY` · `UDINTARRAY` · `LINTARRAY` · `ULINTARRAY` |
-| [Real Arrays](wiki/real-array-datatypes) | `REALARRAY` · `LREALARRAY` — same API as numeric arrays with floating-point zero tolerance (`1e-9`) |
-| [String Array](wiki/string-array-datatype) | `SSTRINGARRAY` — list operations using `""` as the empty slot sentinel |
+| [Datatypes Overview](https://github.com/SRCthird/ethernetip-emulator/wiki/datatypes) | All built-in types at a glance, and a step-by-step guide to creating custom datatypes |
+| [Basic Datatypes](https://github.com/SRCthird/ethernetip-emulator/wiki/basic-datatypes) | Scalar types: `BOOL`, integers, floats, and strings — shared `get_val` / `set_val` / `on_change` API |
+| [Bool Array](https://github.com/SRCthird/ethernetip-emulator/wiki/bool-array-datatype) | `BOOLARRAY` — bit-level access, list operations, bulk mutations |
+| [Numeric Arrays](https://github.com/SRCthird/ethernetip-emulator/wiki/numeric-array-datatypes) | `SINTARRAY` · `USINTARRAY` · `INTARRAY` · `UINTARRAY` · `DINTARRAY` · `UDINTARRAY` · `LINTARRAY` · `ULINTARRAY` |
+| [Real Arrays](https://github.com/SRCthird/ethernetip-emulator/wiki/real-array-datatypes) | `REALARRAY` · `LREALARRAY` — same API as numeric arrays with floating-point zero tolerance (`1e-9`) |
+| [String Array](https://github.com/SRCthird/ethernetip-emulator/wiki/string-array-datatype) | `SSTRINGARRAY` — list operations using `""` as the empty slot sentinel |
+| [GPIO](https://github.com/SRCthird/ethernetip-emulator/wiki/gpio-datatype) | `GPIO` — maps EtherNet/IP tags to physical hardware pins on a Raspberry Pi or Orange Pi |
+| [Counter](https://github.com/SRCthird/ethernetip-emulator/wiki/gpio-datatype) | `COUNTER` — composite datatype that models a up/down counter with control tags |
+| [Timer](https://github.com/SRCthird/ethernetip-emulator/wiki/gpio-datatype) | `TIMER` — composite datatype that models a timer with control tags |
 
 ## Typical Workflow 
 
