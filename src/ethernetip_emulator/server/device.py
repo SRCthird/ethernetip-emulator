@@ -18,6 +18,7 @@ class AttributeDevice(device.Attribute):
     _defaults: Optional[Mapping[str, Any]] = None
     _server_control: Optional[apidict] = None
     _control_lock = threading.Lock()
+    _readonly: set[str] = set()
 
     @classmethod
     def set_server_control(cls, control: apidict) -> None:
@@ -88,7 +89,17 @@ class AttributeDevice(device.Attribute):
         else:
             kwargs["default"] = value
 
+    @classmethod
+    def protect(cls, *tag_names: str) -> None:
+        cls._readonly.update(tag_names)
+
+    @classmethod
+    def unprotect(cls, *tag_names: str) -> None:
+        cls._readonly.difference_update(tag_names)
+
     def __setitem__(self, key: Any, value: Any) -> None:
+        if self.name in type(self)._readonly:
+            return
         super().__setitem__(key, value)
         self._actions.on_set(self, key, value)
 
