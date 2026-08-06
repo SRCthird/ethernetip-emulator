@@ -3,7 +3,7 @@
 
 # example/basic_datatypes/tags.py
 from ethernetip_emulator.server.tag_specs import tag_registry
-from ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import AttributeDevice, actions
 
 
 @tag_registry.register
@@ -47,3 +47,6 @@ def _():
         ("O_Timer", actions.type.TIMER(5000)),
         ("O_String", actions.type.STRING("HELLO")),
     ]
+
+
+AttributeDevice.protect("O_TEXT.DATA")
