@@ -94,8 +94,12 @@ class AttributeDevice(device.Attribute):
         cls._readonly.update(tag_names)
 
     @classmethod
-    def unprotect(cls, *tag_names: str) -> None:
-        cls._readonly.difference_update(tag_names)
+    def unprotect(cls, *tag_name: str) -> None:
+        cls._readonly.difference_update(tag_name)
+
+    @classmethod
+    def is_protected(cls, tag_name: str) -> bool:
+        return tag_name in cls._readonly
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if self.name in type(self)._readonly:
