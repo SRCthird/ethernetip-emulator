@@ -8,6 +8,7 @@ import threading
 import time
 import cpppo
 from cpppo.server.enip.main import main as enip_main
+from cpppo.server.enip import client
 
 from ethernetip_emulator.server.device import AttributeDevice
 from ethernetip_emulator.server.tag_specs import tag_registry
@@ -74,8 +75,9 @@ class TestDatatypeSStringActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_string.DATA")
+        AttributeDevice.protect("tag_string.LEN")
         actions._lookup("tag_string.DATA")[slice(0, 1)] = [""]  # type: ignore
-        actions._lookup("tag_string.LEN")[slice(0, 1)] = [0]  # type: ignore
 
     def test_get_val(self):
         self.assertEqual(actions.string.get_val("tag_string"), "")
@@ -111,3 +113,30 @@ class TestDatatypeSStringActions(unittest.TestCase):
 
         actions.string.set_val("tag_string", "VALUE!")
         self.assertEqual(changed[-1], "VALUE!")
+
+    def test_protected_internal_data_writes(self):
+        v = "DATA"
+        AttributeDevice.protect("tag_string.DATA")
+        actions.string.set_val("tag_string", v)
+        AttributeDevice.unprotect("tag_string.DATA")
+
+        self.assertEqual(actions.string.get_val("tag_string"), v)
+
+    def test_protected_internal_len_writes(self):
+        v = "DATA"
+        AttributeDevice.unprotect("tag_string.LEN")
+        actions.string.set_val("tag_string", v)
+        AttributeDevice.protect("tag_string.LEN")
+
+        self.assertEqual(actions.string.get_len("tag_string"), len(v))
+
+    def test_protected_external_data_no_writes(self):
+        AttributeDevice.protect("tag_string.DATA")
+        actions._lookup("tag_string.DATA")[slice(0, 1)] = ["VALUE"]  # type: ignore
+
+        self.assertEqual(actions.string.get_val("tag_string"), "")
+
+    def test_protected_external_len_no_writes(self):
+        actions._lookup("tag_string.LEN")[slice(0, 1)] = [5]  # type: ignore
+
+        self.assertEqual(actions.string.get_len("tag_string"), 0)
