@@ -5,6 +5,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List
 
+from ethernetip_emulator.server.device import AttributeDevice
+
 if TYPE_CHECKING:
     from ...actions import AttributeActions
 
@@ -40,4 +42,9 @@ class Basic:
         if data_tag is None:
             return
         self.type_validator(value if not isinstance(value, list) else value[0])
-        data_tag[key] = value if isinstance(value, list) else [value]
+        if AttributeDevice.is_protected(name_prefix):
+            AttributeDevice.unprotect(name_prefix)
+            data_tag[key] = value if isinstance(value, list) else [value]
+            AttributeDevice.protect(name_prefix)
+        else:
+            data_tag[key] = value if isinstance(value, list) else [value]
