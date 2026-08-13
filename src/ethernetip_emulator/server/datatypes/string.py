@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, override
 from .templates import Basic
 from ..tag_specs import tag_registry
-from ..device import actions
+from ..device import AttributeDevice, actions
 
 if TYPE_CHECKING:
     from ..actions import AttributeActions
@@ -28,6 +28,7 @@ class String(Basic):
     @staticmethod
     @tag_registry.expander("STRING")
     def _(name: str, preset: str):
+        AttributeDevice.protect(f"{name}.LEN")
         return [
             (f"{name}.LEN", actions.type.DINT(len(preset))),
             (f"{name}.DATA", actions.type.SSTRING(preset)),
@@ -37,7 +38,7 @@ class String(Basic):
     def on_set_hook(self, tag_name: str, attr: Any, key: Any, value: Any) -> None:
         if tag_name.endswith(".DATA"):
             name_prefix = tag_name[: -len(".DATA")]
-            self._len_helper(name_prefix, value, key)
+            self._len_helper(name_prefix, value[0], key)
 
     @override
     def on_change(
@@ -59,7 +60,12 @@ class String(Basic):
         data_tag = self.parent._lookup(f"{name_prefix}.DATA")
         if data_tag is None:
             return
-        data_tag[key] = value if isinstance(value, list) else [value]
+        if AttributeDevice.is_protected(f"{name_prefix}.DATA"):
+            AttributeDevice.unprotect(f"{name_prefix}.DATA")
+            data_tag[key] = value if isinstance(value, list) else [value]
+            AttributeDevice.protect(f"{name_prefix}.DATA")
+        else:
+            data_tag[key] = value if isinstance(value, list) else [value]
 
     def get_len(self, name_prefix: str, key: slice = slice(0, 1)) -> int:
         len_tag = self.parent._lookup(f"{name_prefix}.LEN")
@@ -71,15 +77,9 @@ class String(Basic):
     def _len_helper(
         self, name_prefix: str, value: str, key: slice = slice(0, 1)
     ) -> None:
-        data_tag = self.parent._lookup(f"{name_prefix}.DATA")
-        len_tag = self.parent._lookup(f"{name_prefix}.LEN")
-
-        assert data_tag is not None and len_tag is not None
-
-        new_value = value[0] if isinstance(value, list) else value
-
-        try:
-            len_tag[key] = len(new_value)
-        except Exception:
-            if hasattr(len_tag, "value"):
-                len_tag.value = len(new_value)
+        if AttributeDevice.is_protected(f"{name_prefix}.LEN"):
+            AttributeDevice.unprotect(f"{name_prefix}.LEN")
+            actions.dint.set_val(f"{name_prefix}.LEN", len(value))
+            AttributeDevice.protect(f"{name_prefix}.LEN")
+        else:
+            actions.dint.set_val(f"{name_prefix}.LEN", len(value))

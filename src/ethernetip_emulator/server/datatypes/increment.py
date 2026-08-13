@@ -4,7 +4,7 @@
 # src/ethernetip_emulator/server/datatypes/increment.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
-from ..device import actions
+from ..device import AttributeDevice, actions
 
 if TYPE_CHECKING:
     from ..actions import AttributeActions
@@ -76,7 +76,12 @@ class Increment:
             if wrap is not None:
                 n %= wrap
 
-            self.parent._write_attr(attr, key, [n])
+            if AttributeDevice.is_protected(tag_name):
+                AttributeDevice.unprotect(tag_name)
+                self.parent._write_attr(attr, key, [n])
+                AttributeDevice.protect(tag_name)
+            else:
+                self.parent._write_attr(attr, key, [n])
             self.parent._sleep(period)
 
     def increment(
@@ -87,7 +92,12 @@ class Increment:
         n: int = int(raw[0]) if raw is not None else 0
         n += increment
         if attr:
-            self.parent._write_attr(attr, key, [n])
+            if AttributeDevice.is_protected(tag_name):
+                AttributeDevice.unprotect(tag_name)
+                self.parent._write_attr(attr, key, [n])
+                AttributeDevice.protect(tag_name)
+            else:
+                self.parent._write_attr(attr, key, [n])
 
     def decrement(
         self, tag_name: str, decrement: int = 1, *, key: slice = slice(0, 1)
@@ -97,11 +107,21 @@ class Increment:
         n: int = int(raw[0]) if raw is not None else 0
         n -= decrement
         if attr:
-            self.parent._write_attr(attr, key, [n])
+            if AttributeDevice.is_protected(tag_name):
+                AttributeDevice.unprotect(tag_name)
+                self.parent._write_attr(attr, key, [n])
+                AttributeDevice.protect(tag_name)
+            else:
+                self.parent._write_attr(attr, key, [n])
 
     def reset(
         self, tag_name: str, *, default: int = 0, key: slice = slice(0, 1)
     ) -> None:
         attr = self.parent._lookup(tag_name)
         if attr:
-            self.parent._write_attr(attr, key, [default])
+            if AttributeDevice.is_protected(tag_name):
+                AttributeDevice.unprotect(tag_name)
+                self.parent._write_attr(attr, key, [default])
+                AttributeDevice.protect(tag_name)
+            else:
+                self.parent._write_attr(attr, key, [default])
