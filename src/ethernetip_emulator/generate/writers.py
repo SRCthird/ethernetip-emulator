@@ -1,9 +1,18 @@
 from pathlib import Path
 
+import jinja2
 import pystache
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+_jinja_env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
+    autoescape=False,
+    keep_trailing_newline=True,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
 
 def render_template(
@@ -128,3 +137,25 @@ def write_module_package(
         package=package,
         module=module,
     )
+
+
+def write_datatype_file(
+    path: Path,
+    *,
+    package: str,
+    class_name: str,
+    tags: list[dict],
+) -> None:
+    template = _jinja_env.get_template("datatype_class.py.jinja")
+
+    content = template.render(
+        package=package,
+        class_name=class_name,
+        class_name_upper=class_name.upper(),
+        module_file=class_name.lower(),
+        tags=tags,
+    )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    print(f"  created  {path}")
