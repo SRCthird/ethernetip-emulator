@@ -1,3 +1,4 @@
 cpppo>=5.2.5
 black>=26.1.0
 coverage>=7.13.4
+pystache>=0.6.8

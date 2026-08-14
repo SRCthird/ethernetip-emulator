@@ -6,7 +6,7 @@ authors = [
 ]
 description = "An Ethernet/IP emulation template built on top of cpppo that exposes a set of tags (as attributes) and supports simple side-effect behaviors (like mirroring tags, background incrementing)."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 license = "MIT"
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -23,6 +23,7 @@ dev = [
   "black>=26.1.0",
   "OPi.GPIO>=0.5.2",
   "RPi.GPIO>=0.7.1",
+  "pystache>=0.6.8",
 ]
 [project.urls]
 "Homepage" = "https://github.com/srcthird/ethernetip-emulator"
