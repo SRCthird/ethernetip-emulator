@@ -1,0 +1,29 @@
+"""
+{{package_path}}/datatypes.py
+
+Datatypes for {{package}} project.
+
+This is where you would define custom datatypes.
+
+Custom datatypes MUST have the following methods:
+    type_validator: a static method that takes in v as Any and returns
+    the default value that will be fed into your expander.
+
+    on_set_hook: a class method that takes in self, tag_name as a string,
+    attr as Any, key as a slice, and value as a List[Any].
+
+    Expander methods are static methods that can have any name, as long
+    as they are decorated with @tag_registry.expander("DATATYPENAME").
+
+Use the @actions.datatype decorator to declare the class as a datatype.
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import AttributeDevice, actions
+
+if TYPE_CHECKING:
+    from ethernetip_emulator.server.actions import AttributeActions
+

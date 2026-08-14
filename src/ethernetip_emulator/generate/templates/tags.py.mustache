@@ -1,0 +1,20 @@
+"""
+{{package_path}}/tags.py
+
+Tags for {{package}} project.
+
+This is where you would define each tag for the project.
+
+The @tag_registry.register decorator takes in a function that returns a list of tags.
+Each tag is defined as a 2-tuple of (tag_name: str, type_spec: TypeSpec)
+
+TypeSpec is a typed value object from actions.type.*, carrying 
+    both the data type and its default value.
+"""
+from ethernetip_emulator.server.tag_specs import tag_registry
+from ethernetip_emulator.server.device import actions
+
+@tag_registry.register
+def _():
+    return [
+    ]
