@@ -5,7 +5,7 @@
 # src/ethernetip_emulator/server/actions/counter.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
-from ..device import actions
+from ..device import AttributeDevice, actions
 from ..tag_specs import tag_registry
 
 if TYPE_CHECKING:
@@ -69,6 +69,10 @@ class Counter:
     @staticmethod
     @tag_registry.expander("COUNTER")
     def _(name: str, preset: int):
+        AttributeDevice.protect(f"{name}.DN")
+        AttributeDevice.protect(f"{name}.OV")
+        AttributeDevice.protect(f"{name}.UN")
+        AttributeDevice.protect(f"{name}.RES")
         return [
             (f"{name}.PRE", actions.type.DINT(preset)),
             (f"{name}.ACC", actions.type.DINT(0)),

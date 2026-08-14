@@ -5,7 +5,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 import time
-from ..device import actions
+from ..device import AttributeDevice, actions
 from ..tag_specs import tag_registry
 
 if TYPE_CHECKING:
@@ -69,6 +69,8 @@ class Timer:
     @tag_registry.expander("TIMER")
     def _(name: str, preset: int):
         actions.timer.start(name, enable=f"{name}.EN")
+        AttributeDevice.protect(f"{name}.TT")
+        AttributeDevice.protect(f"{name}.DN")
         return [
             (f"{name}.PRE", actions.type.DINT(preset)),
             (f"{name}.ACC", actions.type.DINT(0)),
