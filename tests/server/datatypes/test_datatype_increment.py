@@ -71,6 +71,7 @@ class TestDatatypeIncrementActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_inc")
         actions._lookup("tag_inc")[slice(0, 1)] = [0]  # type: ignore
 
     def test_increment_adds_one(self):
@@ -219,6 +220,30 @@ class TestDatatypeIncrementActions(unittest.TestCase):
         t.join(timeout=2.0)
         self.assertEqual(actions.int.get_val("tag_inc"), 0)
 
+    def test_protect_at_start_writes(self):
+        AttributeDevice.protect("tag_inc")
 
-if __name__ == "__main__":
-    unittest.main()
+        with actions:
+            actions.increment.start("tag_inc", period=0.05, initial_delay=0.0)
+            time.sleep(0.2)
+        self.assertGreater(actions.int.get_val("tag_inc"), 0)
+
+    def test_protect_increment_writes(self):
+        AttributeDevice.protect("tag_inc")
+
+        actions.increment.increment("tag_inc")
+        self.assertEqual(actions.int.get_val("tag_inc"), 1)
+
+    def test_protect_decrement_writes(self):
+        AttributeDevice.protect("tag_inc")
+
+        actions.int.set_val("tag_inc", 1)
+        actions.increment.decrement("tag_inc")
+        self.assertEqual(actions.int.get_val("tag_inc"), 0)
+
+    def test_protect_reset_writes(self):
+        AttributeDevice.protect("tag_inc")
+
+        actions.int.set_val("tag_inc", 10)
+        actions.increment.reset("tag_inc")
+        self.assertEqual(actions.int.get_val("tag_inc"), 0)
