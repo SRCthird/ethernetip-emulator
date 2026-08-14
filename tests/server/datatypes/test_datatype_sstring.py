@@ -98,7 +98,9 @@ class TestDatatypeSStringActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_sstring")
         actions._lookup("tag_sstring")[slice(0, 1)] = [""]  # type: ignore
+        AttributeDevice.unprotect("tag_sstring_array")
         actions._lookup("tag_sstring_array")[slice(0, 4)] = ["", "", "", ""]  # type: ignore
 
     def test_get_val(self):
@@ -310,3 +312,31 @@ class TestDatatypeSStringActions(unittest.TestCase):
         )
         v = actions.sstringarray.find("tag_sstring_array", "VALUE5")
         self.assertIsNone(v)
+
+    def test_protected_internal_writes(self):
+        AttributeDevice.protect("tag_sstring")
+        actions.sstring.set_val("tag_sstring", "VALUE1")
+
+        self.assertEqual(actions.sstring.get_val("tag_sstring"), "VALUE1")
+
+    def test_array_protected_internal_writes(self):
+        AttributeDevice.protect("tag_sstring_array")
+        actions.sstringarray.set_val("tag_sstring_array", ["VALUE1"], slice(0, 1))
+
+        self.assertEqual(
+            actions.sstringarray.get_val("tag_sstring_array"), ["VALUE1", "", "", ""]
+        )
+
+    def test_protected_no_writes(self):
+        AttributeDevice.protect("tag_sstring")
+        actions._lookup("tag_sstring")[slice(0, 1)] = ["VALUE1"]  # type: ignore
+
+        self.assertEqual(actions.sstring.get_val("tag_sstring"), "")
+
+    def test_array_protected_no_writes(self):
+        AttributeDevice.protect("tag_sstring_array")
+        actions._lookup("tag_sstring_array")[slice(0, 1)] = ["VALUE1"]  # type: ignore
+
+        self.assertEqual(
+            actions.sstringarray.get_val("tag_sstring_array"), ["", "", "", ""]
+        )
