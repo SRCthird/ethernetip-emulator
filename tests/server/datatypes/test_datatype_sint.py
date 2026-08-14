@@ -165,7 +165,9 @@ class TestDatatypeSintActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_sint")
         actions._lookup("tag_sint")[slice(0, 1)] = [0]  # type: ignore
+        AttributeDevice.unprotect("tag_sint_array")
         actions._lookup("tag_sint_array")[slice(0, 4)] = [0, 0, 0, 0]  # type: ignore
 
     def test_get_val(self):
@@ -359,3 +361,27 @@ class TestDatatypeSintActions(unittest.TestCase):
         actions.sintarray.set_val("tag_sint_array", [10, 20, 30, 40])
         actions.sintarray.clear("tag_sint_array")
         self.assertEqual(actions.sintarray.is_empty("tag_sint_array"), True)
+
+    def test_protected_internal_writes(self):
+        AttributeDevice.protect("tag_sint")
+        actions.sint.set_val("tag_sint", 10)
+
+        self.assertEqual(actions.sint.get_val("tag_sint"), 10)
+
+    def test_array_protected_internal_writes(self):
+        AttributeDevice.protect("tag_sint_array")
+        actions.sintarray.set_val("tag_sint_array", [10], slice(0, 1))
+
+        self.assertEqual(actions.sintarray.get_val("tag_sint_array"), [10, 0, 0, 0])
+
+    def test_protected_no_writes(self):
+        AttributeDevice.protect("tag_sint")
+        actions._lookup("tag_sint")[slice(0, 1)] = [10]  # type: ignore
+
+        self.assertEqual(actions.sint.get_val("tag_sint"), 0)
+
+    def test_array_protected_no_writes(self):
+        AttributeDevice.protect("tag_sint_array")
+        actions._lookup("tag_sint_array")[slice(0, 1)] = [10]  # type: ignore
+
+        self.assertEqual(actions.sintarray.get_val("tag_sint_array"), [0, 0, 0, 0])
