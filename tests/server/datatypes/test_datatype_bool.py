@@ -93,7 +93,9 @@ class TestDatatypeBoolActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_bool")
         actions._lookup("tag_bool")[slice(0, 1)] = [False]  # type: ignore
+        AttributeDevice.unprotect("tag_bool_array")
         actions._lookup("tag_bool_array")[slice(0, 4)] = [False, False, False, False]  # type: ignore
 
     def test_get_val(self):
@@ -304,4 +306,32 @@ class TestDatatypeBoolActions(unittest.TestCase):
         actions.boolarray.invert("tag_bool_array")
         self.assertEqual(
             actions.boolarray.get_val("tag_bool_array"), [False, True, False, True]
+        )
+
+    def test_protected_internal_writes(self):
+        AttributeDevice.protect("tag_bool")
+        actions.bool.set_val("tag_bool", True)
+
+        self.assertEqual(actions.bool.get_val("tag_bool"), True)
+
+    def test_array_protected_internal_writes(self):
+        AttributeDevice.protect("tag_bool_array")
+        actions.boolarray.set_val("tag_bool_array", [True], slice(0, 1))
+
+        self.assertEqual(
+            actions.boolarray.get_val("tag_bool_array"), [True, False, False, False]
+        )
+
+    def test_protected_no_writes(self):
+        AttributeDevice.protect("tag_bool")
+        actions._lookup("tag_bool")[slice(0, 1)] = [True]  # type: ignore
+
+        self.assertEqual(actions.bool.get_val("tag_bool"), False)
+
+    def test_array_protected_no_writes(self):
+        AttributeDevice.protect("tag_bool_array")
+        actions._lookup("tag_bool_array")[slice(0, 1)] = [True]  # type: ignore
+
+        self.assertEqual(
+            actions.boolarray.get_val("tag_bool_array"), [False, False, False, False]
         )

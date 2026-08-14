@@ -165,7 +165,9 @@ class TestDatatypeDintActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_dint")
         actions._lookup("tag_dint")[slice(0, 1)] = [0]  # type: ignore
+        AttributeDevice.unprotect("tag_dint_array")
         actions._lookup("tag_dint_array")[slice(0, 4)] = [0, 0, 0, 0]  # type: ignore
 
     def test_get_val(self):
@@ -359,3 +361,27 @@ class TestDatatypeDintActions(unittest.TestCase):
         actions.dintarray.set_val("tag_dint_array", [10, 20, 30, 40])
         actions.dintarray.clear("tag_dint_array")
         self.assertEqual(actions.dintarray.is_empty("tag_dint_array"), True)
+
+    def test_protected_internal_writes(self):
+        AttributeDevice.protect("tag_dint")
+        actions.dint.set_val("tag_dint", 10)
+
+        self.assertEqual(actions.dint.get_val("tag_dint"), 10)
+
+    def test_array_protected_internal_writes(self):
+        AttributeDevice.protect("tag_dint_array")
+        actions.dintarray.set_val("tag_dint_array", [10], slice(0, 1))
+
+        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [10, 0, 0, 0])
+
+    def test_protected_no_writes(self):
+        AttributeDevice.protect("tag_dint")
+        actions._lookup("tag_dint")[slice(0, 1)] = [10]  # type: ignore
+
+        self.assertEqual(actions.dint.get_val("tag_dint"), 0)
+
+    def test_array_protected_no_writes(self):
+        AttributeDevice.protect("tag_dint_array")
+        actions._lookup("tag_dint_array")[slice(0, 1)] = [10]  # type: ignore
+
+        self.assertEqual(actions.dintarray.get_val("tag_dint_array"), [0, 0, 0, 0])

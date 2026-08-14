@@ -72,6 +72,10 @@ class TestAttributeDevice(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_bool")
+        AttributeDevice.unprotect("tag_float")
+        AttributeDevice.unprotect("tag_string")
+        AttributeDevice.unprotect("tag_bool")
 
     def test_ensure_defaults_populates_dict(self):
         self.assertIsNotNone(AttributeDevice._defaults)
@@ -123,6 +127,31 @@ class TestAttributeDevice(unittest.TestCase):
     def test_typespec_preserves_default(self):
         ts = TypeSpec("real", 9.9)
         self.assertAlmostEqual(ts.default, 9.9, places=5)
+
+    def test_unprotect_not_in_readonly(self):
+        AttributeDevice.unprotect("tag_bool")
+        self.assertNotIn("tag_bool", AttributeDevice._readonly)
+
+    def test_protect_in_readonly(self):
+        AttributeDevice.protect("tag_bool")
+        self.assertIn("tag_bool", AttributeDevice._readonly)
+
+    def test_protected(self):
+        AttributeDevice.protect("tag_bool")
+        self.assertTrue(AttributeDevice.is_protected("tag_bool"))
+
+    def test_unprotected(self):
+        AttributeDevice.unprotect("tag_bool")
+        self.assertFalse(AttributeDevice.is_protected("tag_bool"))
+
+    def test_protect_multiple_in_readonly(self):
+        tags = ["tag_bool", "tag_float", "tag_float", "tag_string", "tag_bool"]
+        for tag in tags:
+            AttributeDevice.protect(tag)
+
+        for tag in tags:
+            with self.subTest(item=tag):
+                self.assertIn(tag, AttributeDevice._readonly)
 
 
 class TestAttributeDefaults(unittest.TestCase):

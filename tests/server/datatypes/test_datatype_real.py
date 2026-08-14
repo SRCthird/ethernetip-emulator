@@ -107,7 +107,9 @@ class TestDatatypeRealActions(unittest.TestCase):
 
     def setUp(self) -> None:
         AttributeDevice._ensure_defaults()
+        AttributeDevice.unprotect("tag_real")
         actions._lookup("tag_real")[slice(0, 1)] = [0.0]  # type: ignore
+        AttributeDevice.unprotect("tag_real_array")
         actions._lookup("tag_real_array")[slice(0, 4)] = [0.0, 0.0, 0.0, 0.0]  # type: ignore
 
     def test_get_val(self):
@@ -307,3 +309,31 @@ class TestDatatypeRealActions(unittest.TestCase):
         actions.realarray.set_val("tag_real_array", [10.0, 20.0, 30.0, 40.0])
         actions.realarray.clear("tag_real_array")
         self.assertEqual(actions.realarray.is_empty("tag_real_array"), True)
+
+    def test_protected_internal_writes(self):
+        AttributeDevice.protect("tag_real")
+        actions.real.set_val("tag_real", 10.0)
+
+        self.assertEqual(actions.real.get_val("tag_real"), 10.0)
+
+    def test_array_protected_internal_writes(self):
+        AttributeDevice.protect("tag_real_array")
+        actions.realarray.set_val("tag_real_array", [10.0], slice(0, 1))
+
+        self.assertEqual(
+            actions.realarray.get_val("tag_real_array"), [10.0, 0.0, 0.0, 0.0]
+        )
+
+    def test_protected_no_writes(self):
+        AttributeDevice.protect("tag_real")
+        actions._lookup("tag_real")[slice(0, 1)] = [10.0]  # type: ignore
+
+        self.assertEqual(actions.real.get_val("tag_real"), 0)
+
+    def test_array_protected_no_writes(self):
+        AttributeDevice.protect("tag_real_array")
+        actions._lookup("tag_real_array")[slice(0, 1)] = [10.0]  # type: ignore
+
+        self.assertEqual(
+            actions.realarray.get_val("tag_real_array"), [0.0, 0.0, 0.0, 0.0]
+        )

@@ -3,7 +3,7 @@
 
 # example/mfg_line/tags.py
 from ethernetip_emulator.server.tag_specs import tag_registry
-from ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import AttributeDevice, actions
 
 
 @tag_registry.register
@@ -25,3 +25,7 @@ def _outputTags():
         ("O_Passed", actions.type.UINTARRAY((0,) * 10)),  # Tuple of size 10
         ("O_Failed", actions.type.UINTARRAY((0,) * 10)),  # Tuple of size 10
     ]
+
+
+v = [i[0] for i in tag_registry.build()]
+[AttributeDevice.protect(i) for i in v if i.startswith("O")]

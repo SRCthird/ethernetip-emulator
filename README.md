@@ -148,6 +148,28 @@ your_project/
 
 For larger projects, split tags and actions into sub-modules and import them from a top-level `__init__.py` so all registrations are triggered before the server starts.
 
+## Protecting Attributes
+
+`AttributeDevice` can make one or more attributes read-only. Protection is applied by attribute name and prevents writes handled by `AttributeDevice.__setitem__`; blocked writes are ignored and do not trigger on_set actions.
+- `AttributeDevice.protect(*tag_names)` marks the specified attributes as protected.
+- `AttributeDevice.unprotect(*tag_names)` removes protection from the specified attributes.
+- `AttributeDevice.is_protected(tag_name)` returns True when the attribute is currently protected; otherwise, it returns False.
+
+```python
+from ethernetip_emulator.server.device import AttributeDevice
+
+# Prevent writes to one or more attributes.
+AttributeDevice.protect("Motor.Enabled", "Motor.Speed")
+
+if AttributeDevice.is_protected("Motor.Speed"):
+    print("Motor.Speed is read-only")
+
+# Allow writes again when the protected state is no longer needed.
+AttributeDevice.unprotect("Motor.Speed", "Motor.Enabled")
+```
+
+Protection is maintained on the AttributeDevice class, so use the class methods to manage the protected attribute names. It remains active until the attributes are explicitly passed to unprotect.
+
 ## Supporting the Development of EtherNet/IP Emulator
 EtherNet/IP Emulator's development depends on your contributions. Right now it is just me working on this, so any contributions are welcome!
 
