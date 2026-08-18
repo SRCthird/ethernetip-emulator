@@ -10,6 +10,7 @@ from cpppo.server.enip import device
 from cpppo.server.enip.main import main as device_controller
 from .tag_specs import tag_registry
 from .actions import AttributeActions
+from .web_api import WebApi
 
 
 class AttributeDevice(device.Attribute):
@@ -19,6 +20,7 @@ class AttributeDevice(device.Attribute):
     _server_control: Optional[apidict] = None
     _control_lock = threading.Lock()
     _readonly: set[str] = set()
+    _web_api: Optional[WebApi] = None
 
     @classmethod
     def set_server_control(cls, control: apidict) -> None:
@@ -54,15 +56,19 @@ class AttributeDevice(device.Attribute):
         defaults: Optional[Mapping[str, Any]] = None,
         actions: Optional[AttributeActions] = None,
         registry: Optional[Dict[str, "AttributeDevice"]] = None,
+        web_api: Optional[WebApi] = None,
         **kwargs: Any,
     ) -> None:
         type(self)._ensure_defaults()
         self._defaults = defaults if defaults is not None else type(self)._defaults
         self._actions = actions if actions is not None else type(self)._actions
         self._registry = registry if registry is not None else type(self).registry
+        self._web_api = web_api if web_api is not None else type(self)._web_api
         self._apply_default(name, kwargs)
         super().__init__(name, type_cls, **kwargs)
         self._registry[name] = self
+        if self._web_api is not None:
+            self._web_api.build(self._registry)
 
     def _apply_default(self, name: str, kwargs: Dict[str, Any]) -> None:
         if self._defaults is None:
