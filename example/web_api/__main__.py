@@ -14,16 +14,12 @@ if __name__ == "__main__":
     server_control = apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
 
-    web_api = WebApi(host="0.0.0.0", port=8080)
-    AttributeDevice._web_api = web_api
+    AttributeDevice._web_api = WebApi(host="0.0.0.0", port=8080)
 
-    web_api.start()
-    try:
-        with AttributeDevice._actions.bind(AttributeDevice):
-            device_controller(
-                argv=tag_registry.build_argv(base_args=["--print"]),
-                attribute_class=AttributeDevice,
-                server={"control": server_control},
-            )
-    finally:
-        web_api.stop()
+    with AttributeDevice._actions.bind(AttributeDevice):
+        AttributeDevice.start_web()
+        device_controller(
+            argv=tag_registry.build_argv(base_args=["--print"]),
+            attribute_class=AttributeDevice,
+            server={"control": server_control},
+        )
