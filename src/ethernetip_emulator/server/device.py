@@ -2,6 +2,7 @@
 # All rights reserved
 
 # src/ethernetip_emulator/server/device.py
+import logging
 import threading
 from typing import Any, Dict, Mapping, Optional
 
@@ -11,6 +12,8 @@ from cpppo.server.enip.main import main as device_controller
 from .tag_specs import tag_registry
 from .actions import AttributeActions
 from .web_api import WebApi
+
+log = logging.getLogger(__name__)
 
 
 class AttributeDevice(device.Attribute):
@@ -28,7 +31,24 @@ class AttributeDevice(device.Attribute):
             cls._server_control = control
 
     @classmethod
+    def start_web(cls):
+        try:
+            if cls._web_api is not None:
+                cls._web_api.start()
+        except PermissionError:
+            log.warning("Error: Permission denied. Cannot bind to port.")
+            log.warning(
+                "Fix: Run as root/administrator or use a port higher than 1023."
+            )
+            cls._web_api = None
+        except OSError:
+            log.warning("Error: Port is already in use by another process.")
+            cls._web_api = None
+
+    @classmethod
     def shutdown(cls) -> None:
+        if cls._web_api is not None:
+            cls._web_api.stop()
         with cls._control_lock:
             ctrl = cls._server_control
         if ctrl is not None:
