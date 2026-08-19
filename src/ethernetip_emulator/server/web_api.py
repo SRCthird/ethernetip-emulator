@@ -57,10 +57,12 @@ class WebApi:
         host: str,
         port: int,
         actions: "AttributeActions",
+        tag_registry: "TagRegistry",
     ) -> None:
         self.host = host
         self.port = port
         self.actions = actions
+        self.tag_registry = tag_registry
 
         self._server: Optional[WSGIServer] = None
         self._server_thread: Optional[threading.Thread] = None
