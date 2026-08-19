@@ -31,6 +31,10 @@ class AttributeDevice(device.Attribute):
             cls._server_control = control
 
     @classmethod
+    def build_web(cls, host: str, port: int):
+        cls._web_api = WebApi(host, port, cls.registry, cls._actions)
+
+    @classmethod
     def start_web(cls):
         try:
             if cls._web_api is not None:
@@ -87,8 +91,6 @@ class AttributeDevice(device.Attribute):
         self._apply_default(name, kwargs)
         super().__init__(name, type_cls, **kwargs)
         self._registry[name] = self
-        if self._web_api is not None:
-            self._web_api.build(self._registry)
 
     def _apply_default(self, name: str, kwargs: Dict[str, Any]) -> None:
         if self._defaults is None:
