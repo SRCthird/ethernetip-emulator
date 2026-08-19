@@ -101,3 +101,8 @@ class TestWebApi(unittest.TestCase):
         body = {"value": "UPDATED"}
         requests.put(url, json=body)
         self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+
+    def test_not_found(self):
+        url = "http://localhost:8080/tags/tag_none"
+        response = requests.get(url)
+        self.assertEqual(response.status_code, 404)
