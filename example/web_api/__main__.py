@@ -7,16 +7,14 @@ from ethernetip_emulator.server.device import (
     apidict,
     device_controller,
 )
-from ethernetip_emulator.server.web_api import WebApi
 from ethernetip_emulator.server.tag_specs import tag_registry
 
 if __name__ == "__main__":
     server_control = apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
 
-    AttributeDevice._web_api = WebApi(host="0.0.0.0", port=8080)
-
     with AttributeDevice._actions.bind(AttributeDevice):
+        AttributeDevice.build_web(host="0.0.0.0", port=8080)
         AttributeDevice.start_web()
         device_controller(
             argv=tag_registry.build_argv(base_args=["--print"]),
