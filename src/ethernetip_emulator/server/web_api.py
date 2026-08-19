@@ -12,6 +12,8 @@ from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 
 import web
 
+from ethernetip_emulator.server.tag_specs import TagRegistry
+
 
 if TYPE_CHECKING:
     from .actions import AttributeActions
@@ -54,13 +56,11 @@ class WebApi:
         self,
         host: str,
         port: int,
-        registry: Mapping[str, "AttributeDevice"],
         actions: "AttributeActions",
     ) -> None:
         self.host = host
         self.port = port
         self.actions = actions
-        self.registry = registry
 
         self._server: Optional[WSGIServer] = None
         self._server_thread: Optional[threading.Thread] = None
@@ -69,7 +69,7 @@ class WebApi:
         self.app = self._build_application()
 
     def _get_attribute(self, tag_name: str) -> "AttributeDevice":
-        attr = self.registry.get(tag_name)
+        attr = self.actions._lookup(tag_name)
         if attr is None:
             raise TagNotFoundError(tag_name)
         return attr
@@ -202,7 +202,8 @@ class WebApi:
                 try:
                     body = {
                         "tags": [
-                            outer._serialize(n, a) for n, a in outer.registry.items()
+                            outer._serialize(n, a)
+                            for n, a in outer.actions._registry().items()
                         ]
                     }
                 except Exception as exc:
