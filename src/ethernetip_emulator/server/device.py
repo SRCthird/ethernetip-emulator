@@ -32,7 +32,7 @@ class AttributeDevice(device.Attribute):
 
     @classmethod
     def build_web(cls, host: str, port: int):
-        cls._web_api = WebApi(host, port, cls._actions)
+        cls._web_api = WebApi(host, port, cls._actions, tag_registry)
 
     @classmethod
     def start_web(cls):
