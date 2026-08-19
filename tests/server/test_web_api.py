@@ -89,3 +89,15 @@ class TestWebApi(unittest.TestCase):
         response = requests.get(url)
         data = response.json()
         self.assertEqual(data.get("value"), 4)
+
+    def test_post_val(self):
+        url = "http://localhost:8080/tags/tag_string.DATA"
+        body = {"value": "UPDATED"}
+        requests.post(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+
+    def test_put_val(self):
+        url = "http://localhost:8080/tags/tag_string.DATA"
+        body = {"value": "UPDATED"}
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
