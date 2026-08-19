@@ -184,7 +184,7 @@ class WebApi:
             for index, item in enumerate(cast_value):
                 attr[index] = item
         else:
-            attr[0] = [cast_value]
+            attr[slice(0, 1)] = [cast_value]
 
         return self._serialize(tag_name, attr)
 
