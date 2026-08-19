@@ -45,6 +45,22 @@ def _stop_server(server_control, thread) -> None:
     AttributeDevice.reset_defaults()
 
 
+class TestRegistry(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.api = WebApi(host="0.0.0.0", port=8081)
+        cls.api.start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.api.stop()
+
+    def test_raises(self):
+        with self.assertRaises(RuntimeError):
+            self.api._get_attribute("test")
+
+
 class TestWebApi(unittest.TestCase):
 
     @classmethod
