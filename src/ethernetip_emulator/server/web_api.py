@@ -12,7 +12,9 @@ from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 
 import web
 
+
 if TYPE_CHECKING:
+    from .actions import AttributeActions
     from .device import AttributeDevice
 
 log = logging.getLogger(__name__)
@@ -38,61 +40,33 @@ class _QuietWSGIRequestHandler(WSGIRequestHandler):
 
 
 class WebApi:
-    """
-    Routes
-    ------
-    GET  /health           -> {"status": "ok"}
-    GET  /tags             -> {"tags": [...]}
-    GET  /tags/<name>      -> {"name", "value", "type", "readonly"}
-    PUT  /tags/<name>      -> body {"value": <...>}, same shape as GET
-    POST /tags/<name>      -> alias for PUT
-
-    Parameters
-    ----------
-    host, port:
-        Bind address for the embedded HTTP server.
-    """
 
     _URLS = (
         "/health",
         "health",
         "/tags",
         "tags",
-        "/tags/(.+)",
+        "/tag/(.+)",
         "tag",
     )
 
     def __init__(
         self,
-        *,
-        host: str = "0.0.0.0",
-        port: int = 8080,
+        host: str,
+        port: int,
+        registry: Mapping[str, "AttributeDevice"],
+        actions: "AttributeActions",
     ) -> None:
         self.host = host
         self.port = port
-
-        self._registry: Optional[Mapping[str, "AttributeDevice"]] = None
+        self.actions = actions
+        self.registry = registry
 
         self._server: Optional[WSGIServer] = None
         self._server_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
         self.app = self._build_application()
-
-    def build(self, registry: Mapping[str, "AttributeDevice"]) -> "WebApi":
-        with self._lock:
-            self._registry = registry
-        return self
-
-    @property
-    def registry(self) -> Mapping[str, "AttributeDevice"]:
-        if self._registry is None:
-            raise RuntimeError(
-                "WebApi is not yet bound to a tag registry; "
-                "it must be passed to AttributeDevice(..., web_api=...) "
-                "before use, or build() must be called explicitly."
-            )
-        return self._registry
 
     def _get_attribute(self, tag_name: str) -> "AttributeDevice":
         attr = self.registry.get(tag_name)
