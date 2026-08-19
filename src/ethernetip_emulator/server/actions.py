@@ -7,7 +7,10 @@ from __future__ import annotations
 import threading
 import time
 import weakref
-from typing import Any, Callable, List, overload, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, overload, Type
+
+if TYPE_CHECKING:
+    from .device import AttributeDevice
 
 
 class TypeSpec:
@@ -196,6 +199,10 @@ class AttributeActions:
         if attr is None:
             self._logger(f"AttributeActions: attr is None for {tag_name}")
         return attr
+
+    def _registry(self) -> Dict[str, "AttributeDevice"]:
+        attr_class = self._get_attr_class()
+        return getattr(attr_class, "registry", {})
 
     def _start_worker(self, name: str, fn: Callable[[], None]) -> "AttributeActions":
         t = self._thread_factory(target=fn, daemon=True, name=name)
