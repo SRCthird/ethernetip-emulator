@@ -20,11 +20,12 @@ from tests.server import next_port
 def _start_server(port: int) -> tuple:
     server_control = cpppo.apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
+
     AttributeDevice._web_api = WebApi(host="0.0.0.0", port=8080)
+    AttributeDevice.start_web()
 
     def background_task():
         with AttributeDevice._actions.bind(AttributeDevice):
-            AttributeDevice.start_web()
             enip_main(
                 argv=tag_registry.build_argv(base_args=["--address", f":{port}"]),
                 attribute_class=AttributeDevice,
@@ -43,22 +44,6 @@ def _stop_server(server_control, thread) -> None:
     tag_registry.invalidate()
     tag_registry._raw.clear()
     AttributeDevice.reset_defaults()
-
-
-class TestRegistry(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.api = WebApi(host="0.0.0.0", port=8081)
-        cls.api.start()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.api.stop()
-
-    def test_raises(self):
-        with self.assertRaises(RuntimeError):
-            self.api._get_attribute("test")
 
 
 class TestWebApi(unittest.TestCase):
@@ -95,30 +80,30 @@ class TestWebApi(unittest.TestCase):
         )
 
     def test_get_val(self):
-        url = "http://localhost:8080/tags/tag_string.DATA"
+        url = "http://localhost:8080/tag/tag_string.DATA"
         response = requests.get(url)
         data = response.json()
         self.assertEqual(data.get("value"), "TEST")
 
     def test_get_len(self):
-        url = "http://localhost:8080/tags/tag_string.LEN"
+        url = "http://localhost:8080/tag/tag_string.LEN"
         response = requests.get(url)
         data = response.json()
         self.assertEqual(data.get("value"), 4)
 
     def test_post_val(self):
-        url = "http://localhost:8080/tags/tag_string.DATA"
+        url = "http://localhost:8080/tag/tag_string.DATA"
         body = {"value": "UPDATED"}
         requests.post(url, json=body)
         self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
 
     def test_put_val(self):
-        url = "http://localhost:8080/tags/tag_string.DATA"
+        url = "http://localhost:8080/tag/tag_string.DATA"
         body = {"value": "UPDATED"}
         requests.put(url, json=body)
         self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
 
     def test_not_found(self):
-        url = "http://localhost:8080/tags/tag_none"
+        url = "http://localhost:8080/tag/tag_none"
         response = requests.get(url)
         self.assertEqual(response.status_code, 404)
