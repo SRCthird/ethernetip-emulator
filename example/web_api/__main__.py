@@ -13,9 +13,10 @@ if __name__ == "__main__":
     server_control = apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
 
+    AttributeDevice.build_web(host="0.0.0.0", port=8080)
+    AttributeDevice.start_web()
+
     with AttributeDevice._actions.bind(AttributeDevice):
-        AttributeDevice.build_web(host="0.0.0.0", port=8080)
-        AttributeDevice.start_web()
         device_controller(
             argv=tag_registry.build_argv(base_args=["--print"]),
             attribute_class=AttributeDevice,
