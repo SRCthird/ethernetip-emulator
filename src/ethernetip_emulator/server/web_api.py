@@ -53,6 +53,8 @@ class WebApi:
         "tag",
         "/datatypes/",
         "datatypes",
+        "/datatype/(.+)",
+        "datatype",
     )
 
     def __init__(
@@ -87,6 +89,15 @@ class WebApi:
             for group in order
             if include_empty or grouped.get(group)
         ]
+
+    def _datatype_group(self, name):
+        tags = {}
+        for tag, group in self.tag_registry.build_type_map().items():
+            if group != name:
+                continue
+            attr = self.actions._lookup(tag)
+            tags[tag] = type(getattr(attr, "parser", None)).__name__
+        return {"name": name, "tags": tags}
 
     def _get_attribute(self, tag_name: str) -> "AttributeDevice":
         attr = self.actions._lookup(tag_name)
@@ -233,7 +244,21 @@ class WebApi:
                     return outer._handle_error(exc)
                 return outer._respond("200 OK", body)
 
-        fvars = {"health": health, "tags": tags, "tag": tag, "datatypes": datatypes}
+        class datatype:
+            def GET(self, type_name: str) -> str:
+                try:
+                    body = outer._datatype_group(type_name)
+                except Exception as exc:
+                    return outer._handle_error(exc)
+                return outer._respond("200 OK", body)
+
+        fvars = {
+            "health": health,
+            "tags": tags,
+            "tag": tag,
+            "datatypes": datatypes,
+            "datatype": datatype,
+        }
         return web.application(self._URLS, fvars, autoreload=False)
 
     def start(self) -> None:
