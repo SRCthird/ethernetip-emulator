@@ -37,8 +37,8 @@ class TagTypeError(ValueError):
 class _QuietWSGIRequestHandler(WSGIRequestHandler):
     """Routes access log lines through :mod:`logging` instead of stderr."""
 
-    def log_message(self, fmt: str, *args: Any) -> None:
-        log.debug("%s - %s", self.address_string(), fmt % args)
+    def log_message(self, format, *args):
+        log.debug("%s - %s", self.address_string(), format % args)
 
 
 class WebApi:
@@ -51,7 +51,7 @@ class WebApi:
         "/tag/(.+)",
         "tag",
         "/datatypes/",
-        "datatypes"
+        "datatypes",
     )
 
     def __init__(
@@ -109,13 +109,13 @@ class WebApi:
 
         if AttributeDevice.is_protected(tag_name):
             raise TagReadOnlyError(tag_name)
-        
+
         origin_type = type(getattr(attr, "parser", None)).__name__
         type_attr = self.actions._datatypes.get(origin_type.lower())
         type_validator = getattr(type_attr, "type_validator", None)
         if type_validator is None:
             raise TagTypeError(f"Type, {origin_type}, has no type_validator method")
-        
+
         if isinstance(raw_value, list):
             cast_value = [type_validator(v) for v in raw_value]
         else:
