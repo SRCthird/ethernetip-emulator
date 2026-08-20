@@ -112,13 +112,9 @@ class WebApi:
         self,
         host: str,
         port: int,
-        actions: "AttributeActions",
-        tag_registry: "TagRegistry",
     ) -> None:
         self.host = host
         self.port = port
-        self.actions = actions
-        self.tag_registry = tag_registry
 
         self._server: Optional[WSGIServer] = None
         self._server_thread: Optional[threading.Thread] = None
@@ -132,11 +128,23 @@ class WebApi:
 
         return AttributeDevice
 
+    @staticmethod
+    def _actions() -> "AttributeActions":
+        from .device import actions
+
+        return actions
+
+    @staticmethod
+    def _tag_registry() -> "TagRegistry":
+        from .tag_specs import tag_registry
+
+        return tag_registry
+
     def _type_map(self) -> Dict[str, str]:
-        return self.tag_registry.build_type_map()
+        return self._tag_registry().build_type_map()
 
     def _known_types(self) -> List[str]:
-        return list(getattr(self.actions._datatypes.get("type"), "_types", ()))
+        return list(getattr(self._actions()._datatypes.get("type"), "_types", ()))
 
     @staticmethod
     def _parser_name(attr: "AttributeDevice") -> Optional[str]:
@@ -144,7 +152,7 @@ class WebApi:
         return type(parser).__name__ if parser is not None else None
 
     def _lookup(self, tag_name: str) -> "AttributeDevice":
-        attr = self.actions._lookup(tag_name)
+        attr = self._actions()._lookup(tag_name)
         if attr is None:
             raise TagNotFoundError(tag_name)
         return attr
@@ -199,7 +207,7 @@ class WebApi:
         type_map = self._type_map()
         return [
             self._serialize(name, attr, type_map)
-            for name, attr in self.actions._registry().items()
+            for name, attr in self._actions()._registry().items()
         ]
 
     def _validator_for(self, attr: "AttributeDevice") -> Callable[[Any], Any]:
@@ -207,7 +215,7 @@ class WebApi:
         if type_name is None:
             raise TagTypeError("tag has no parser and cannot be written")
 
-        type_attr = self.actions._datatypes.get(type_name.lower())
+        type_attr = self._actions()._datatypes.get(type_name.lower())
         validator = getattr(type_attr, "type_validator", None)
         if validator is None:
             raise TagTypeError(f"type {type_name!r} has no type_validator method")
