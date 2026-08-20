@@ -50,6 +50,8 @@ class WebApi:
         "tags",
         "/tag/(.+)",
         "tag",
+        "/datatypes/",
+        "datatypes"
     )
 
     def __init__(
@@ -76,8 +78,7 @@ class WebApi:
             raise TagNotFoundError(tag_name)
         return attr
 
-    @staticmethod
-    def _serialize(name: str, attr: "AttributeDevice") -> Dict[str, Any]:
+    def _serialize(self, name: str, attr: "AttributeDevice") -> Dict[str, Any]:
         from .device import AttributeDevice
 
         try:
@@ -89,62 +90,17 @@ class WebApi:
         except AttributeError:
             value = None
 
-        type_cls = getattr(attr, "parser", None) or getattr(attr, "type_cls", None)
+        type_cls = getattr(attr, "parser", None)
+
+        type_group = self.tag_registry.build_type_map().get(name)
 
         return {
             "name": name,
             "value": value,
+            "group": type_group,
             "type": type(type_cls).__name__ if type_cls is not None else None,
             "readonly": AttributeDevice.is_protected(name),
         }
-
-    @staticmethod
-    def _cast_scalar(type_cls: Any, raw: Any) -> Any:
-        candidate_ctor = None
-
-        if hasattr(type_cls, "ctype"):
-            candidate_ctor = type_cls.ctype
-        elif isinstance(type_cls, type):
-            candidate_ctor = type_cls
-
-        if candidate_ctor is not None:
-            return candidate_ctor(raw)
-
-        if isinstance(raw, bool):
-            return bool(raw)
-        if isinstance(raw, int):
-            return int(raw)
-        if isinstance(raw, float):
-            return float(raw)
-        if isinstance(raw, str):
-            return str(raw)
-
-        raise TagTypeError(f"cannot determine target type for value {raw!r}")
-
-    @classmethod
-    def _validate_and_cast(cls, attr: "AttributeDevice", raw_value: Any) -> Any:
-        type_cls = getattr(attr, "parser", None) or getattr(attr, "type_cls", None)
-        current = getattr(attr, "value", None)
-        is_array = isinstance(current, (list, tuple))
-
-        try:
-            if is_array:
-                if not isinstance(raw_value, (list, tuple)):
-                    raw_value = [raw_value]
-                if len(raw_value) != len(current):
-                    raise TagTypeError(
-                        f"expected {len(current)} value(s), got {len(raw_value)}"
-                    )
-                return [cls._cast_scalar(type_cls, v) for v in raw_value]
-            if isinstance(raw_value, (list, tuple)):
-                if len(raw_value) != 1:
-                    raise TagTypeError("expected a single scalar value")
-                raw_value = raw_value[0]
-            return cls._cast_scalar(type_cls, raw_value)
-        except TagTypeError:
-            raise
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise TagTypeError(str(exc)) from exc
 
     def _write(self, tag_name: str, raw_value: Any) -> Dict[str, Any]:
         from .device import AttributeDevice
@@ -153,8 +109,17 @@ class WebApi:
 
         if AttributeDevice.is_protected(tag_name):
             raise TagReadOnlyError(tag_name)
-
-        cast_value = self._validate_and_cast(attr, raw_value)
+        
+        origin_type = type(getattr(attr, "parser", None)).__name__
+        type_attr = self.actions._datatypes.get(origin_type.lower())
+        type_validator = getattr(type_attr, "type_validator", None)
+        if type_validator is None:
+            raise TagTypeError(f"Type, {origin_type}, has no type_validator method")
+        
+        if isinstance(raw_value, list):
+            cast_value = [type_validator(v) for v in raw_value]
+        else:
+            cast_value = type_validator(raw_value)
 
         if isinstance(cast_value, list):
             for index, item in enumerate(cast_value):
