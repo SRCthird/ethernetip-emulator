@@ -4,42 +4,93 @@
 # src/ethernetip_emulator/server/web_api.py
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import threading
-from typing import Any, Dict, Optional, TYPE_CHECKING
-from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 from collections import defaultdict
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TYPE_CHECKING
+from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 
 import web
-
-from ethernetip_emulator.server.tag_specs import TagRegistry
-
 
 if TYPE_CHECKING:
     from .actions import AttributeActions
     from .device import AttributeDevice
+    from .tag_specs import TagRegistry
 
 log = logging.getLogger(__name__)
 
 
-class TagNotFoundError(KeyError):
-    """Raised when a requested tag does not exist in the registry."""
+class ApiError(Exception):
+    status = "500 Internal Server Error"
+    code = "internal_error"
+
+    def as_body(self) -> Dict[str, str]:
+        return {"error": self.code, "message": str(self)}
 
 
-class TagReadOnlyError(PermissionError):
-    """Raised when a write is attempted against a protected tag."""
+class TagNotFoundError(ApiError, KeyError):
+    status = "404 Not Found"
+    code = "tag_not_found"
+
+    def __init__(self, tag_name: str) -> None:
+        super().__init__(f"unknown tag {tag_name!r}")
 
 
-class TagTypeError(ValueError):
-    """Raised when a supplied value does not satisfy a tag's type safety."""
+class TagReadOnlyError(ApiError, PermissionError):
+    status = "403 Forbidden"
+    code = "tag_read_only"
+
+    def __init__(self, tag_name: str) -> None:
+        super().__init__(f"tag {tag_name!r} is read-only")
+
+
+class TagTypeError(ApiError, ValueError):
+    status = "400 Bad Request"
+    code = "type_mismatch"
+
+
+class DatatypeNotFoundError(ApiError, KeyError):
+    status = "404 Not Found"
+    code = "datatype_not_found"
+
+    def __init__(self, type_name: str) -> None:
+        super().__init__(f"unknown datatype {type_name!r}")
+
+
+class BadRequestError(ApiError):
+    status = "400 Bad Request"
+    code = "bad_request"
 
 
 class _QuietWSGIRequestHandler(WSGIRequestHandler):
-    """Routes access log lines through :mod:`logging` instead of stderr."""
-
     def log_message(self, format, *args):
         log.debug("%s - %s", self.address_string(), format % args)
+
+
+def _respond(status: str, body: Mapping[str, Any]) -> str:
+    web.ctx.status = status
+    web.header("Content-Type", "application/json")
+    return json.dumps(body)
+
+
+def endpoint(func: Callable[..., Mapping[str, Any]]) -> Callable[..., str]:
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> str:
+        try:
+            return _respond("200 OK", func(*args, **kwargs))
+        except ApiError as exc:
+            return _respond(exc.status, exc.as_body())
+        except Exception as exc:
+            log.exception("unhandled error in WebApi request")
+            return _respond(
+                "500 Internal Server Error",
+                {"error": "internal_error", "message": str(exc)},
+            )
+
+    return wrapper
 
 
 class WebApi:
@@ -51,7 +102,7 @@ class WebApi:
         "tags",
         "/tag/(.+)",
         "tag",
-        "/datatypes/",
+        "/datatypes/?",
         "datatypes",
         "/datatype/(.+)",
         "datatype",
@@ -75,191 +126,161 @@ class WebApi:
 
         self.app = self._build_application()
 
-    def _datatype_groups(self, include_empty=False):
-        all_types = list(getattr(self.actions._datatypes.get("type"), "_types"))
-        type_map = self.tag_registry.build_type_map()
-        grouped = defaultdict(dict)
-        for tag, group in type_map.items():
-            attr = self.actions._lookup(tag)
-            grouped[group][tag] = type(getattr(attr, "parser", None)).__name__
+    @staticmethod
+    def _device_cls() -> type["AttributeDevice"]:
+        from .device import AttributeDevice
 
-        order = all_types + [g for g in grouped if g not in all_types]
-        return [
-            {"name": group, "tags": grouped[group]}
-            for group in order
-            if include_empty or grouped.get(group)
-        ]
+        return AttributeDevice
 
-    def _datatype_group(self, name):
-        tags = {}
-        for tag, group in self.tag_registry.build_type_map().items():
-            if group != name:
-                continue
-            attr = self.actions._lookup(tag)
-            tags[tag] = type(getattr(attr, "parser", None)).__name__
-        return {"name": name, "tags": tags}
+    def _type_map(self) -> Dict[str, str]:
+        return self.tag_registry.build_type_map()
 
-    def _get_attribute(self, tag_name: str) -> "AttributeDevice":
+    def _known_types(self) -> List[str]:
+        return list(getattr(self.actions._datatypes.get("type"), "_types", ()))
+
+    @staticmethod
+    def _parser_name(attr: "AttributeDevice") -> Optional[str]:
+        parser = getattr(attr, "parser", None)
+        return type(parser).__name__ if parser is not None else None
+
+    def _lookup(self, tag_name: str) -> "AttributeDevice":
         attr = self.actions._lookup(tag_name)
         if attr is None:
             raise TagNotFoundError(tag_name)
         return attr
 
-    def _serialize(self, name: str, attr: "AttributeDevice") -> Dict[str, Any]:
-        from .device import AttributeDevice
+    def _tag_types(self, tags: Iterable[str]) -> Dict[str, Optional[str]]:
+        return {tag: self._parser_name(self._lookup(tag)) for tag in tags}
+
+    def _datatype_groups(self, include_empty: bool = False) -> List[Dict[str, Any]]:
+        grouped: Dict[str, Dict[str, Optional[str]]] = defaultdict(dict)
+        for tag, group in self._type_map().items():
+            grouped[group][tag] = self._parser_name(self._lookup(tag))
+
+        known = self._known_types()
+        order = known + [g for g in grouped if g not in known]
+        return [
+            {"name": group, "tags": grouped.get(group, {})}
+            for group in order
+            if include_empty or grouped.get(group)
+        ]
+
+    def _datatype_group(self, name: str) -> Dict[str, Any]:
+        tags = [tag for tag, group in self._type_map().items() if group == name]
+        if not tags and name not in self._known_types():
+            raise DatatypeNotFoundError(name)
+        return {"name": name, "tags": self._tag_types(tags)}
+
+    def _serialize(
+        self,
+        name: str,
+        attr: "AttributeDevice",
+        type_map: Optional[Mapping[str, str]] = None,
+    ) -> Dict[str, Any]:
+        if type_map is None:
+            type_map = self._type_map()
 
         try:
-            value = (
-                list(attr.value)
-                if isinstance(attr.value, (list, tuple))
-                else attr.value
-            )
+            raw = attr.value
         except AttributeError:
             value = None
-
-        type_cls = getattr(attr, "parser", None)
-
-        type_group = self.tag_registry.build_type_map().get(name)
+        else:
+            value = list(raw) if isinstance(raw, (list, tuple)) else raw
 
         return {
             "name": name,
             "value": value,
-            "group": type_group,
-            "type": type(type_cls).__name__ if type_cls is not None else None,
-            "readonly": AttributeDevice.is_protected(name),
+            "group": type_map.get(name),
+            "type": self._parser_name(attr),
+            "readonly": self._device_cls().is_protected(name),
         }
 
+    def _serialize_all(self) -> List[Dict[str, Any]]:
+        type_map = self._type_map()
+        return [
+            self._serialize(name, attr, type_map)
+            for name, attr in self.actions._registry().items()
+        ]
+
+    def _validator_for(self, attr: "AttributeDevice") -> Callable[[Any], Any]:
+        type_name = self._parser_name(attr)
+        if type_name is None:
+            raise TagTypeError("tag has no parser and cannot be written")
+
+        type_attr = self.actions._datatypes.get(type_name.lower())
+        validator = getattr(type_attr, "type_validator", None)
+        if validator is None:
+            raise TagTypeError(f"type {type_name!r} has no type_validator method")
+        return validator
+
     def _write(self, tag_name: str, raw_value: Any) -> Dict[str, Any]:
-        from .device import AttributeDevice
-
-        attr = self._get_attribute(tag_name)
-
-        if AttributeDevice.is_protected(tag_name):
+        attr = self._lookup(tag_name)
+        if self._device_cls().is_protected(tag_name):
             raise TagReadOnlyError(tag_name)
 
-        origin_type = type(getattr(attr, "parser", None)).__name__
-        type_attr = self.actions._datatypes.get(origin_type.lower())
-        type_validator = getattr(type_attr, "type_validator", None)
-        if type_validator is None:
-            raise TagTypeError(f"Type, {origin_type}, has no type_validator method")
+        validator = self._validator_for(attr)
 
         if isinstance(raw_value, list):
-            cast_value = [type_validator(v) for v in raw_value]
-        else:
-            cast_value = type_validator(raw_value)
-
-        if isinstance(cast_value, list):
-            for index, item in enumerate(cast_value):
+            for index, item in enumerate(validator(v) for v in raw_value):
                 attr[index] = item
         else:
-            attr[slice(0, 1)] = [cast_value]
+            attr[slice(0, 1)] = [validator(raw_value)]
 
         return self._serialize(tag_name, attr)
 
     @staticmethod
-    def _respond(status: str, body: Dict[str, Any]) -> str:
-        web.ctx.status = status
-        web.header("Content-Type", "application/json")
-        return json.dumps(body)
-
-    def _handle_error(self, exc: Exception) -> str:
-        if isinstance(exc, TagNotFoundError):
-            return self._respond(
-                "404 Not Found",
-                {"error": "tag_not_found", "message": f"unknown tag '{exc}'"},
-            )
-        if isinstance(exc, TagReadOnlyError):
-            return self._respond(
-                "403 Forbidden",
-                {"error": "tag_read_only", "message": f"tag '{exc}' is read-only"},
-            )
-        if isinstance(exc, TagTypeError):
-            return self._respond(
-                "400 Bad Request",
-                {"error": "type_mismatch", "message": str(exc)},
-            )
-        log.exception("unhandled error in WebApi request")
-        return self._respond(
-            "500 Internal Server Error",
-            {"error": "internal_error", "message": str(exc)},
-        )
+    def _read_value_payload() -> Any:
+        raw_body = web.data()
+        try:
+            payload = json.loads(raw_body) if raw_body else None
+        except json.JSONDecodeError as exc:
+            raise BadRequestError(f"request body is not valid JSON: {exc}") from exc
+        if not isinstance(payload, dict) or "value" not in payload:
+            raise BadRequestError('request body must be JSON: {"value": <...>}')
+        return payload["value"]
 
     def _build_application(self) -> "web.application":
-        outer = self
+        api = self
 
         class health:
-            def GET(self) -> str:
-                return outer._respond("200 OK", {"status": "ok"})
+            @endpoint
+            def GET(self) -> Dict[str, Any]:
+                return {"status": "ok"}
 
         class tags:
-            def GET(self) -> str:
-                try:
-                    body = {
-                        "tags": [
-                            outer._serialize(n, a)
-                            for n, a in outer.actions._registry().items()
-                        ]
-                    }
-                except Exception as exc:
-                    return outer._handle_error(exc)
-                return outer._respond("200 OK", body)
+            @endpoint
+            def GET(self) -> Dict[str, Any]:
+                return {"tags": api._serialize_all()}
 
         class tag:
-            def GET(self, tag_name: str) -> str:
-                try:
-                    attr = outer._get_attribute(tag_name)
-                    body = outer._serialize(tag_name, attr)
-                except Exception as exc:
-                    return outer._handle_error(exc)
-                return outer._respond("200 OK", body)
+            @endpoint
+            def GET(self, tag_name: str) -> Dict[str, Any]:
+                return api._serialize(tag_name, api._lookup(tag_name))
 
-            def _write_request(self, tag_name: str) -> str:
-                try:
-                    raw_body = web.data()
-                    payload = json.loads(raw_body) if raw_body else None
-                    if not isinstance(payload, dict) or "value" not in payload:
-                        return outer._respond(
-                            "400 Bad Request",
-                            {
-                                "error": "bad_request",
-                                "message": 'request body must be JSON: {"value": <...>}',
-                            },
-                        )
-                    result = outer._write(tag_name, payload["value"])
-                except Exception as exc:
-                    return outer._handle_error(exc)
-                return outer._respond("200 OK", result)
+            @endpoint
+            def PUT(self, tag_name: str) -> Dict[str, Any]:
+                return api._write(tag_name, api._read_value_payload())
 
-            def PUT(self, tag_name: str) -> str:
-                return self._write_request(tag_name)
-
-            def POST(self, tag_name: str) -> str:
-                return self._write_request(tag_name)
+            POST = PUT
 
         class datatypes:
-            def GET(self) -> str:
-                try:
-                    body = {"datatypes": [outer._datatype_groups()]}
-                except Exception as exc:
-                    return outer._handle_error(exc)
-                return outer._respond("200 OK", body)
+            @endpoint
+            def GET(self) -> Dict[str, Any]:
+                return {"datatypes": api._datatype_groups()}
 
         class datatype:
-            def GET(self, type_name: str) -> str:
-                try:
-                    body = outer._datatype_group(type_name)
-                except Exception as exc:
-                    return outer._handle_error(exc)
-                return outer._respond("200 OK", body)
+            @endpoint
+            def GET(self, type_name: str) -> Dict[str, Any]:
+                return api._datatype_group(type_name)
 
-        fvars = {
+        handlers = {
             "health": health,
             "tags": tags,
             "tag": tag,
             "datatypes": datatypes,
             "datatype": datatype,
         }
-        return web.application(self._URLS, fvars, autoreload=False)
+        return web.application(self._URLS, handlers, autoreload=False)
 
     def start(self) -> None:
         with self._lock:
@@ -281,9 +302,20 @@ class WebApi:
 
     def stop(self) -> None:
         with self._lock:
-            if self._server is not None:
-                self._server.shutdown()
-            if self._server_thread is not None:
-                self._server_thread.join(timeout=5)
-            self._server = None
-            self._server_thread = None
+            server, thread = self._server, self._server_thread
+            self._server = self._server_thread = None
+
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+        if thread is not None:
+            thread.join(timeout=5)
+            if thread.is_alive():
+                log.warning("WebApi server thread did not stop within 5s")
+
+    def __enter__(self) -> "WebApi":
+        self.start()
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.stop()
