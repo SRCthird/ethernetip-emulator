@@ -7,8 +7,9 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
+from collections import defaultdict
 
 import web
 
@@ -71,6 +72,21 @@ class WebApi:
         self._lock = threading.Lock()
 
         self.app = self._build_application()
+
+    def _datatype_groups(self, include_empty=False):
+        all_types = list(getattr(self.actions._datatypes.get("type"), "_types"))
+        type_map = self.tag_registry.build_type_map()
+        grouped = defaultdict(dict)
+        for tag, group in type_map.items():
+            attr = self.actions._lookup(tag)
+            grouped[group][tag] = type(getattr(attr, "parser", None)).__name__
+
+        order = all_types + [g for g in grouped if g not in all_types]
+        return [
+            {"name": group, "tags": grouped[group]}
+            for group in order
+            if include_empty or grouped.get(group)
+        ]
 
     def _get_attribute(self, tag_name: str) -> "AttributeDevice":
         attr = self.actions._lookup(tag_name)
@@ -209,7 +225,15 @@ class WebApi:
             def POST(self, tag_name: str) -> str:
                 return self._write_request(tag_name)
 
-        fvars = {"health": health, "tags": tags, "tag": tag}
+        class datatypes:
+            def GET(self) -> str:
+                try:
+                    body = {"datatypes": [outer._datatype_groups()]}
+                except Exception as exc:
+                    return outer._handle_error(exc)
+                return outer._respond("200 OK", body)
+
+        fvars = {"health": health, "tags": tags, "tag": tag, "datatypes": datatypes}
         return web.application(self._URLS, fvars, autoreload=False)
 
     def start(self) -> None:
