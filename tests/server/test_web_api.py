@@ -22,7 +22,7 @@ def _start_server(port: int) -> tuple:
     server_control = cpppo.apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
 
-    AttributeDevice._web_api = WebApi(host="localhost", port=8080)
+    AttributeDevice.build_web(host="localhost", port=8080)
     AttributeDevice._web_api.__enter__()
 
     def background_task():
@@ -46,6 +46,78 @@ def _stop_server(server_control, thread) -> None:
     tag_registry.invalidate()
     tag_registry._raw.clear()
     AttributeDevice.reset_defaults()
+
+
+class TestStartWeb(unittest.TestCase):
+
+    def tearDown(self):
+        AttributeDevice._web_api = None
+
+    def test_start_web_permission_error(self):
+        AttributeDevice.build_web("0.0.0.0", 80)
+        with mock.patch.object(
+            AttributeDevice._web_api, "start", side_effect=PermissionError
+        ):
+            with self.assertLogs(level="WARNING") as logs:
+                AttributeDevice.start_web()
+
+        self.assertIsNone(AttributeDevice._web_api)
+        self.assertTrue(
+            any("Permission denied" in msg for msg in logs.output)
+        )
+
+    def test_start_web_os_error(self):
+        AttributeDevice.build_web("0.0.0.0", 8080)
+        with mock.patch.object(
+            AttributeDevice._web_api, "start", side_effect=OSError
+        ):
+            with self.assertLogs(level="WARNING") as logs:
+                AttributeDevice.start_web()
+
+        self.assertIsNone(AttributeDevice._web_api)
+        self.assertTrue(
+            any("already in use" in msg for msg in logs.output)
+        )
+
+
+class TestWebApiLifecycle(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        server_control = cpppo.apidict(timeout=1.0)
+        AttributeDevice.set_server_control(server_control)
+        AttributeDevice.build_web(host="localhost", port=8081)
+        AttributeDevice.start_web()
+
+        with AttributeDevice._actions.bind(AttributeDevice):
+            t = threading.Thread(
+                target=enip_main,
+                kwargs=dict(
+                    argv=tag_registry.build_argv(base_args=["--address", f":{next_port()}"]),
+                    attribute_class=AttributeDevice,
+                    server={"control": server_control},
+                ),
+                daemon=True,
+            )
+            t.start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        AttributeDevice.shutdown()
+
+    def test_start_is_noop_when_already_started(self):
+        assert AttributeDevice._web_api is not None
+        first_server = AttributeDevice._web_api._server
+        first_thread = AttributeDevice._web_api._server_thread
+        self.assertIsNotNone(first_server)
+        self.assertIsNotNone(first_thread)
+        self.assertTrue(first_thread.is_alive())
+
+        AttributeDevice.start_web()
+
+        self.assertIs(AttributeDevice._web_api._server, first_server)
+        self.assertIs(AttributeDevice._web_api._server_thread, first_thread)
+        self.assertTrue(first_thread.is_alive())
 
 
 class TestWebApi(unittest.TestCase):
@@ -421,17 +493,3 @@ class TestWebApi(unittest.TestCase):
         fake_warning.assert_called_once()
         self.assertIsNone(api._server)
         self.assertIsNone(api._server_thread)
-
-    def test_start_is_noop_when_already_started(self):
-        assert AttributeDevice._web_api is not None
-        first_server = AttributeDevice._web_api._server
-        first_thread = AttributeDevice._web_api._server_thread
-        self.assertIsNotNone(first_server)
-        self.assertIsNotNone(first_thread)
-        self.assertTrue(first_thread.is_alive())
-
-        AttributeDevice._web_api.start()
-
-        self.assertIs(AttributeDevice._web_api._server, first_server)
-        self.assertIs(AttributeDevice._web_api._server_thread, first_thread)
-        self.assertTrue(first_thread.is_alive())
