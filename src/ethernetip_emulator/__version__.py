@@ -1,3 +1,6 @@
+# Copyright 2026 Merck KGaA, Darmstadt, Germany and/or its affiliates.
+# All rights reserved
+
 # src/ethernetip_emulator/__version__.py
 from importlib.metadata import version, PackageNotFoundError
 
