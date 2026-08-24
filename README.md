@@ -44,7 +44,8 @@ ethernetip-emulator is a high level binary communications framework built around
 - `black` | Development Dependency (for code formatting)
 - `coverage` | Developer Dependency (for coverage reporting)
 - `RPi.GPIO` or `OPi.GPIO` | Optional Dependency (for gpio i/o)
-
+- `web.py` | Optional Dependency for WebApi
+- 
 ## Getting Started
 
 ```bash
@@ -69,6 +70,10 @@ import actions # registers all listeners (can also just be imported in __init__.
 if __name__ == "__main__":
     server_control = apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
+
+    # To start the web server with web.py:
+    # AttributeDevice.build_web(host="0.0.0.0", port=8080)
+    # AttributeDevice.start_web()
 
     with AttributeDevice._actions.bind(AttributeDevice):
         device_controller(
