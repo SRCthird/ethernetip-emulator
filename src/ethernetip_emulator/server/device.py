@@ -2,6 +2,7 @@
 # All rights reserved
 
 # src/ethernetip_emulator/server/device.py
+import logging
 import threading
 from typing import Any, Dict, Mapping, Optional
 
@@ -10,6 +11,9 @@ from cpppo.server.enip import device
 from cpppo.server.enip.main import main as device_controller
 from .tag_specs import tag_registry
 from .actions import AttributeActions
+from .web_api import WebApi
+
+log = logging.getLogger(__name__)
 
 
 class AttributeDevice(device.Attribute):
@@ -19,6 +23,7 @@ class AttributeDevice(device.Attribute):
     _server_control: Optional[apidict] = None
     _control_lock = threading.Lock()
     _readonly: set[str] = set()
+    _web_api: Optional[WebApi] = None
 
     @classmethod
     def set_server_control(cls, control: apidict) -> None:
@@ -26,7 +31,28 @@ class AttributeDevice(device.Attribute):
             cls._server_control = control
 
     @classmethod
+    def build_web(cls, host: str, port: int):
+        cls._web_api = WebApi(host, port)
+
+    @classmethod
+    def start_web(cls):
+        try:
+            if cls._web_api is not None:
+                cls._web_api.start()
+        except PermissionError:
+            log.warning("Error: Permission denied. Cannot bind to port.")
+            log.warning(
+                "Fix: Run as root/administrator or use a port higher than 1023."
+            )
+            cls._web_api = None
+        except OSError:
+            log.warning("Error: Port is already in use by another process.")
+            cls._web_api = None
+
+    @classmethod
     def shutdown(cls) -> None:
+        if cls._web_api is not None:
+            cls._web_api.stop()
         with cls._control_lock:
             ctrl = cls._server_control
         if ctrl is not None:
@@ -54,12 +80,14 @@ class AttributeDevice(device.Attribute):
         defaults: Optional[Mapping[str, Any]] = None,
         actions: Optional[AttributeActions] = None,
         registry: Optional[Dict[str, "AttributeDevice"]] = None,
+        web_api: Optional[WebApi] = None,
         **kwargs: Any,
     ) -> None:
         type(self)._ensure_defaults()
         self._defaults = defaults if defaults is not None else type(self)._defaults
         self._actions = actions if actions is not None else type(self)._actions
         self._registry = registry if registry is not None else type(self).registry
+        self._web_api = web_api if web_api is not None else type(self)._web_api
         self._apply_default(name, kwargs)
         super().__init__(name, type_cls, **kwargs)
         self._registry[name] = self
