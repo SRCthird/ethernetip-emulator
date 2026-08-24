@@ -130,6 +130,149 @@ class TestWebApi(unittest.TestCase):
             actions.boolarray.get_val("tag_boolarray"), [True, True, True, True]
         )
 
+    def test_post_bulk(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_string.DATA": "UPDATED", 
+                "tag_boolarray": [True, True, True, True]
+            }
+        }
+        requests.post(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+
+    def test_put_bulk(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_string.DATA": "UPDATED", 
+                "tag_boolarray": [True, True, True, True]
+            }
+        }
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+
+    def test_atomic_post_bulk(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_string.DATA": "UPDATED", 
+                "tag_boolarray": [True, True, True, True]
+            },
+            "atomic": True
+        }
+        requests.post(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+
+    def test_atomic_put_bulk(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_string.DATA": "UPDATED", 
+                "tag_boolarray": [True, True, True, True]
+            },
+            "atomic": True
+        }
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "UPDATED")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+
+    def test_bulk_invalid_tag_updates_previous(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_boolarray": [True, True, True, True],
+                "tag_string.DATA": 676767, 
+            }
+        }
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "TEST")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+
+    def test_bulk_invalid_tag_atomic_doesnt_update_any(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_boolarray": [True, True, True, True],
+                "tag_string.DATA": 676767, 
+            },
+            "atomic": True 
+        }
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "TEST")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [False, False, False, False])
+
+    def test_bulk_readonly(self):
+        url = "http://localhost:8080/bulk"
+        tag_body = {
+            "tags": {
+                "tag_boolarray": [True, True, True, True],
+                "tag_string.LEN": 676767, 
+            }
+        }
+        response = requests.put(url, json=tag_body)
+        body = response.json()
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [True, True, True, True])
+        self.assertIn("tag_string.LEN", body.get("errors"))
+        self.assertEqual(body.get("errors").get("tag_string.LEN").get("error"), "tag_read_only")
+        self.assertEqual(body.get("errors").get("tag_string.LEN").get("message"), "tag 'tag_string.LEN' is read-only")
+
+    def test_bulk_readonly_atomic(self):
+        url = "http://localhost:8080/bulk"
+        tag_body = {
+            "tags": {
+                "tag_boolarray": [True, True, True, True],
+                "tag_string.LEN": 676767, 
+            },
+            "atomic": True
+        }
+        requests.put(url, json=tag_body)
+        self.assertEqual(actions.string.get_len("tag_string"), 4)
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [False, False, False, False])
+
+    def test_bulk_apierror_atomic(self):
+        url = "http://localhost:8080/bulk"
+        body = {
+            "tags": {
+                "tag_boolarray": [True, True, True, True],
+                "tag_doesnt_exist": "???!!!",
+                "tag_string.DATA": "UPDATED", 
+            },
+            "atomic": True
+        }
+        requests.put(url, json=body)
+        self.assertEqual(actions.string.get_val("tag_string"), "TEST")
+        self.assertEqual(actions.boolarray.get_val("tag_boolarray"), [False, False, False, False])
+
+    def test_bulk_invalid_json(self):
+        url = "http://localhost:8080/bulk"
+        bad_json = '{"name": "test", "broken": '
+        headers = {'Content-Type': 'application/json'}
+        response = requests.put(url, data=bad_json, headers=headers)
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertEqual(body.get("error"), "bad_request")
+
+    def test_bulk_non_dict(self):
+        url = "http://localhost:8080/bulk"
+        response = requests.put(url, json=["not dict"])
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertEqual(body.get("error"), "bad_request")
+
+    def test_bulk_invalid_tag_json(self):
+        url = "http://localhost:8080/bulk"
+        put_body = {
+            "tags": [ "tag_string.DATA", "tag_boolarray" ]
+        }
+        response = requests.put(url, json=put_body)
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertEqual(body.get("error"), "bad_request")
+
     def test_get_datatypes(self):
         url = "http://localhost:8080/datatypes"
         response = requests.get(url)
