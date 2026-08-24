@@ -85,7 +85,7 @@ def endpoint(func: Callable[..., Mapping[str, Any]]) -> Callable[..., str]:
             return _respond(exc.status, exc.as_body())
         except TypeError as texc:
             return _respond(
-                "403 Forbidden", 
+                "403 Forbidden",
                 {"error": "type_error", "message": str(texc)},
             )
         except Exception as exc:
@@ -111,6 +111,8 @@ class WebApi:
         "datatypes",
         "/datatype/(.+)",
         "datatype",
+        "/bulk/?",
+        "bulk",
     )
 
     def __init__(
@@ -241,6 +243,52 @@ class WebApi:
 
         return self._serialize(tag_name, attr)
 
+    def _bulk_write(
+        self, values: Mapping[str, Any], atomic: bool = False
+    ) -> Dict[str, Any]:
+        if atomic:
+            for tag_name, raw_value in values.items():
+                attr = self._lookup(tag_name)
+                if self._device_cls().is_protected(tag_name):
+                    raise TagReadOnlyError(tag_name)
+                validator = self._validator_for(attr)
+                if isinstance(raw_value, list):
+                    for item in raw_value:
+                        validator(item)
+                else:
+                    validator(raw_value)
+
+        results: Dict[str, Any] = {}
+        errors: Dict[str, Any] = {}
+        for tag_name, raw_value in values.items():
+            try:
+                results[tag_name] = self._write(tag_name, raw_value)
+            except ApiError as exc:
+                errors[tag_name] = exc.as_body()
+
+        response: Dict[str, Any] = {"tags": results}
+        if errors:
+            response["errors"] = errors
+        return response
+
+    @staticmethod
+    def _read_bulk_payload() -> Dict[str, Any]:
+        raw_body = web.data()
+        try:
+            payload = json.loads(raw_body) if raw_body else None
+        except json.JSONDecodeError as exc:
+            raise BadRequestError(f"request body is not valid JSON: {exc}") from exc
+        if not isinstance(payload, dict) or "tags" not in payload:
+            raise BadRequestError(
+                'request body must be JSON: {"tags": {<name>: <value>, ...}}'
+            )
+        tags = payload["tags"]
+        if not isinstance(tags, dict):
+            raise BadRequestError(
+                '"tags" must be a JSON object mapping tag name to value'
+            )
+        return payload
+
     @staticmethod
     def _read_value_payload() -> Any:
         raw_body = web.data()
@@ -286,12 +334,22 @@ class WebApi:
             def GET(self, type_name: str) -> Dict[str, Any]:
                 return api._datatype_group(type_name)
 
+        class bulk:
+            @endpoint
+            def POST(self) -> Dict[str, Any]:
+                payload = api._read_bulk_payload()
+                atomic = bool(payload.get("atomic", False))
+                return api._bulk_write(payload["tags"], atomic=atomic)
+
+            PUT = POST
+
         handlers = {
             "health": health,
             "tags": tags,
             "tag": tag,
             "datatypes": datatypes,
             "datatype": datatype,
+            "bulk": bulk,
         }
         return web.application(self._URLS, handlers, autoreload=False)
 
