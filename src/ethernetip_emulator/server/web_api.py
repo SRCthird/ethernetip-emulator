@@ -83,6 +83,11 @@ def endpoint(func: Callable[..., Mapping[str, Any]]) -> Callable[..., str]:
             return _respond("200 OK", func(*args, **kwargs))
         except ApiError as exc:
             return _respond(exc.status, exc.as_body())
+        except TypeError as texc:
+            return _respond(
+                "403 Forbidden", 
+                {"error": "type_error", "message": str(texc)},
+            )
         except Exception as exc:
             log.exception("unhandled error in WebApi request")
             return _respond(
