@@ -10,7 +10,7 @@ def main(argv: list[str] | None = None) -> None:
         generate_datatype()
         return
 
-    root = generate(name=args.name, expand=args.expand)
+    root = generate(name=args.name, expand=args.expand, enable_web=args.web)
     print_tree(root, expand=args.expand)
     print_success(root)
 

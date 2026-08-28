@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import jinja2
-import pystache
 
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -15,24 +14,17 @@ _jinja_env = jinja2.Environment(
 )
 
 
-def render_template(
-    template_name: str,
-    *,
-    package: str,
-    module: str = "",
-) -> str:
-    template_path = TEMPLATE_DIR / template_name
-    template = template_path.read_text(encoding="utf-8")
+def render_template(template_name: str, **context) -> str:
+    template = _jinja_env.get_template(template_name)
+    return template.render(**context)
 
-    package_path = f"{package}/{module}" if module else package
 
-    context = {
-        "package": package,
-        "module": module,
-        "package_path": package_path,
-    }
+def _write(path: Path, template_name: str, **context) -> None:
+    content = render_template(template_name, **context)
 
-    return pystache.render(template, context)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    print(f"  created  {path}")
 
 
 def write_template(
@@ -41,31 +33,34 @@ def write_template(
     *,
     package: str,
     module: str = "",
+    enable_web: bool = False,
 ) -> None:
-    content = render_template(
+    package_path = f"{package}/{module}" if module else package
+
+    _write(
+        path,
         template_name,
         package=package,
         module=module,
+        package_path=package_path,
+        enable_web=enable_web,
     )
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    print(f"  created  {path}")
 
 
 def write_init(path: Path, *, package: str) -> None:
     write_template(
         path,
-        "__init__.py.mustache",
+        "__init__.py.jinja",
         package=package,
     )
 
 
-def write_main(path: Path, *, package: str) -> None:
+def write_main(path: Path, *, package: str, enable_web: bool) -> None:
     write_template(
         path,
-        "__main__.py.mustache",
+        "__main__.py.jinja",
         package=package,
+        enable_web=enable_web,
     )
 
 
@@ -77,7 +72,7 @@ def write_actions_file(
 ) -> None:
     write_template(
         path,
-        "actions.py.mustache",
+        "actions.py.jinja",
         package=package,
         module=module,
     )
@@ -91,7 +86,7 @@ def write_datatypes_file(
 ) -> None:
     write_template(
         path,
-        "datatypes.py.mustache",
+        "datatypes.py.jinja",
         package=package,
         module=module,
     )
@@ -105,7 +100,7 @@ def write_tags_file(
 ) -> None:
     write_template(
         path,
-        "tags.py.mustache",
+        "tags.py.jinja",
         package=package,
         module=module,
     )
@@ -119,7 +114,7 @@ def write_module_file(
 ) -> None:
     write_template(
         path,
-        "module.py.mustache",
+        "module.py.jinja",
         package=package,
         module=module,
     )
@@ -133,7 +128,7 @@ def write_module_package(
 ) -> None:
     write_template(
         folder / "__init__.py",
-        "module_package_init.py.mustache",
+        "module_package_init.py.jinja",
         package=package,
         module=module,
     )
@@ -146,16 +141,12 @@ def write_datatype_file(
     class_name: str,
     tags: list[dict],
 ) -> None:
-    template = _jinja_env.get_template("datatype_class.py.jinja")
-
-    content = template.render(
+    _write(
+        path,
+        "datatype_class.py.jinja",
         package=package,
         class_name=class_name,
         class_name_upper=class_name.upper(),
         module_file=class_name.lower(),
         tags=tags,
     )
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    print(f"  created  {path}")
