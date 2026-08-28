@@ -23,7 +23,6 @@ dev = [
   "black>=26.1.0",
   "OPi.GPIO>=0.5.2",
   "RPi.GPIO>=0.7.1",
-  "pystache>=0.6.8",
   "jinja2>=3.1.6"
 ]
 [project.urls]
