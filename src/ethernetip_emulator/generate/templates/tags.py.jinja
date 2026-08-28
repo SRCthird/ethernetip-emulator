@@ -13,25 +13,27 @@ TypeSpec is a typed value object from actions.type.*, carrying
 
 __INPUT_TAGS__ and __OUTPUT_TAGS__ are recommended methods but not required. Feel
     free to delete/rename both and create a new method that matches your usecase.
+
+For more information:
+https://github.com/SRCthird/ethernetip-emulator/wiki/Defining-Tags-with-tag_registry.register
 """
 from ethernetip_emulator.server.tag_specs import tag_registry
-from ethernetip_emulator.server.device import actions
+from ethernetip_emulator.server.device import AttributeDevice, actions
 
 
 # All tags designated for input only
 @tag_registry.register
 def __INPUT_TAGS__():
-    return [
-    ]
+    return []
 
 
 # All tags designated for output only
 @tag_registry.register
 def __OUTPUT_TAGS__():
-    return [
-    ]
+    return []
 
 
 # Auto-protects all tags in __OUTPUT_TAGS__ so they may not be written to externally
 for tag in __OUTPUT_TAGS__():
     AttributeDevice.protect(tag[0])
+
