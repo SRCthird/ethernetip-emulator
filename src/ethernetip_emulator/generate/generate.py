@@ -35,10 +35,16 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="MODULE",
         help="Expand MODULE into a sub-package (can be used multiple times).",
     )
+    parser.add_argument(
+        "--web",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable the web api in __main__.py",
+    )
     return parser
 
 
-def generate(name: str, expand: list[str]) -> Path:
+def generate(name: str, expand: list[str], enable_web: bool) -> Path:
     root = Path(name)
 
     if root.exists():
@@ -50,7 +56,7 @@ def generate(name: str, expand: list[str]) -> Path:
     package = root.name
 
     write_init(root / "__init__.py", package=package)
-    write_main(root / "__main__.py", package=package)
+    write_main(root / "__main__.py", package=package, enable_web=enable_web)
 
     if "datatypes" in expand:
         datatypes_package = root / "datatypes"

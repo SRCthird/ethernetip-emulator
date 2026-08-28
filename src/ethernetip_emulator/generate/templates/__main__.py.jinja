@@ -9,6 +9,11 @@ from ethernetip_emulator.server.tag_specs import tag_registry
 if __name__ == "__main__":
     server_control = apidict(timeout=1.0)
     AttributeDevice.set_server_control(server_control)
+    {% if enable_web %}
+
+    AttributeDevice.build_web(host="0.0.0.0", port=8080)
+    AttributeDevice.start_web()
+    {% endif %}
 
     with AttributeDevice._actions.bind(AttributeDevice):
         device_controller(

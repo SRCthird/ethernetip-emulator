@@ -10,11 +10,28 @@ Each tag is defined as a 2-tuple of (tag_name: str, type_spec: TypeSpec)
 
 TypeSpec is a typed value object from actions.type.*, carrying 
     both the data type and its default value.
+
+__INPUT_TAGS__ and __OUTPUT_TAGS__ are recommended methods but not required. Feel
+    free to delete/rename both and create a new method that matches your usecase.
 """
 from ethernetip_emulator.server.tag_specs import tag_registry
 from ethernetip_emulator.server.device import actions
 
+
+# All tags designated for input only
 @tag_registry.register
-def _():
+def __INPUT_TAGS__():
     return [
     ]
+
+
+# All tags designated for output only
+@tag_registry.register
+def __OUTPUT_TAGS__():
+    return [
+    ]
+
+
+# Auto-protects all tags in __OUTPUT_TAGS__ so they may not be written to externally
+for tag in __OUTPUT_TAGS__():
+    AttributeDevice.protect(tag[0])

@@ -27,3 +27,23 @@ from ethernetip_emulator.server.device import AttributeDevice, actions
 if TYPE_CHECKING:
     from ethernetip_emulator.server.actions import AttributeActions
 
+@actions.datatype
+class DataTypeName:
+    def __init__(self, parent: AttributeActions):
+        self.parent = parent
+
+    @staticmethod
+    def type_validator(v: Any) -> Any:
+        return v
+
+    @staticmethod
+    @tag_registry.expander("DATATYPENAME")
+    def _(name: str, preset: Tuple):
+        return [
+        ]
+
+    def on_set_hook(
+        self, tag_name: str, attr: Any, key: slice, value: List[Any]
+    ) -> None:
+        pass
+

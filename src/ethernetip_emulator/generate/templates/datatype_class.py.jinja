@@ -12,7 +12,7 @@ Custom datatypes MUST have the following methods:
     on_set_hook: a class method that takes in self, tag_name as a string,
     attr as Any, key as a slice, and value as a List[Any].
 
-    Expander methods are static methods that can have any name, as long
+    Expander method: a static methods that can have any name, as long
     as they are decorated with @tag_registry.expander("DATATYPENAME").
 
 Use the @actions.datatype decorator to declare the class as a datatype.
